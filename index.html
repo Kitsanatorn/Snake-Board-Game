@@ -1087,13 +1087,13 @@ const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`); //
 // Online AFK auto-roll: everyone shows the countdown, only the host rolls (one authority = no double rolls)
 const AFK_SECONDS = 10;
 let rollSeq = 0, turnKey = -1, turnStart = Date.now();
+let rollPending = false; // guest asked host to roll, waiting for the ROLL broadcast
 setInterval(() => {
   const online = gameState && (gameState.mode === 'host' || gameState.mode === 'guest');
   if (!online || gameState.winner != null || isBusy) return;
   const left = Math.max(0, Math.ceil(AFK_SECONDS - (Date.now() - turnStart) / 1000));
   document.getElementById('turnStatusBadge').textContent = `${isMyTurn() ? 'ทอยเต๋าได้เลย 🎲' : 'กำลังรอ...'} ⏱ ${left}s`;
   if (left === 0 && gameState.mode === 'host') {
-    // shortcut: a guest roll landing at the same instant can double-roll, fine at 10s granularity
     const v = 1 + Math.floor(Math.random() * 6);
     netSession.broadcastRoll(v);
     handleRoll(v);
@@ -1173,7 +1173,7 @@ function updateHUD() {
 
   // Roll button state
   const btnRoll = document.getElementById('btnRoll');
-  btnRoll.disabled = isBusy || !live || !myTurn;
+  btnRoll.disabled = isBusy || !live || !myTurn || rollPending;
 
   // Active pawn bounce
   pawns.forEach((p, i) => p.classList.toggle('active', i === gameState.turn && live));
@@ -1227,6 +1227,7 @@ async function handleRoll(v) {
   if (isBusy || !gameState || gameState.winner != null) return;
   isBusy = true;
   rollSeq++;
+  rollPending = false;
   updateHUD();
 
   const turnIdx = gameState.turn;
@@ -1302,11 +1303,16 @@ function showWinnerModal(winnerPlayer) {
 
 // Roll button click
 document.getElementById('btnRoll').onclick = () => {
-  if (!isMyTurn() || isBusy) return;
-  const v = 1 + Math.floor(Math.random() * 6);
-  if (gameState.mode === 'host' || gameState.mode === 'guest') {
-    netSession.broadcastRoll(v);
+  if (!isMyTurn() || isBusy || rollPending) return;
+  if (gameState.mode === 'guest') {
+    // Host is the only dice authority, so a guest click can't race the host's AFK auto-roll
+    rollPending = true;
+    netSession.send({ type: 'ROLL_REQ', id: netSession.myId });
+    updateHUD();
+    return;
   }
+  const v = 1 + Math.floor(Math.random() * 6);
+  if (gameState.mode === 'host') netSession.broadcastRoll(v);
   handleRoll(v);
 };
 
@@ -1475,6 +1481,11 @@ class NetworkSession {
           // Re-send roster in case guest missed it
           this.broadcastRoster();
         }
+      } else if (data.type === 'ROLL_REQ' && gameState && gameState.winner == null && !isBusy
+                 && gameState.players[gameState.turn].id === data.id) {
+        const v = 1 + Math.floor(Math.random() * 6);
+        this.broadcastRoll(v);
+        handleRoll(v);
       } else if (data.type === 'REJOIN' && gameState && !isBusy && gameState.players.some(p => p.id === data.id)) {
         // Reloaded guest asks for the live game; skip while a move animates so positions are final
         this.send({ type: 'STATE', to: data.id, state: { players: gameState.players, turn: gameState.turn, winner: gameState.winner } });
@@ -1519,7 +1530,7 @@ class NetworkSession {
       resetGame();
     }
 
-    if (data.type === 'ROLL' && gameState && gameState.winner == null) {
+    if (data.type === 'ROLL' && !this.isHost && gameState && gameState.winner == null) {
       if (gameState.turn !== data.turn) {
         gameState.turn = data.turn;
       }
@@ -1862,7 +1873,7 @@ function initGameSession(playersList, mode) {
     turn: 0,
     winner: null
   };
-  isBusy = false; turnKey = -1;
+  isBusy = false; turnKey = -1; rollPending = false;
   readyIds.clear();
   unlockedStamps.clear();
   document.getElementById('passportCount').textContent = `0/${PASSPORT_STAMPS.length}`;
@@ -1924,7 +1935,7 @@ function resetGame() {
   gameState.players.forEach(p => p.pos = 0);
   gameState.turn = 0;
   gameState.winner = null;
-  isBusy = false; turnKey = -1;
+  isBusy = false; turnKey = -1; rollPending = false;
   unlockedStamps.clear();
   document.getElementById('passportCount').textContent = `0/${PASSPORT_STAMPS.length}`;
   renderPawns();
