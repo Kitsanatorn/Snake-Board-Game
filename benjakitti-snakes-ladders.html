@@ -1,545 +1,1856 @@
 <!doctype html>
-<html lang="en">
+<html lang="th">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Benjakitti Snakes & Ladders</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>สวนเบญจกิตติ · บันไดงูหรรษา (Benjakitti Snakes & Ladders)</title>
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Prompt:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  body { font-family: Inter, system-ui, sans-serif; background: radial-gradient(1200px 600px at 20% -10%, #d9f99d55, transparent), linear-gradient(160deg, #ecfdf5, #f0fdfa 60%, #ecfccb); }
-  .display { font-family: Fraunces, Georgia, serif; }
-  #board { aspect-ratio: 1; display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; position: relative; }
-  .tile { position: relative; border-radius: 8px; font-size: clamp(8px, 1.4vw, 12px); padding: 2px 4px; cursor: help; overflow: hidden;
-          box-shadow: inset 0 -2px 0 #0001; transition: transform .15s; }
-  .tile:hover { transform: scale(1.06); z-index: 5; box-shadow: 0 6px 14px #0002; }
-  .tile .num { font-weight: 600; opacity: .75; }
-  .tile .lbl { position: absolute; bottom: 2px; left: 3px; right: 3px; font-size: clamp(6px, .9vw, 9px); line-height: 1.05; font-weight: 600; color: #064e3b; }
-  .tile.milestone { outline: 2px solid #ffffffcc; outline-offset: -3px; }
-  #overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
-  .pawn { position: absolute; width: 5.2%; aspect-ratio: 1; border-radius: 50%; z-index: 6; border: 3px solid #fff;
-          box-shadow: 0 4px 10px #0004; transition: left .17s ease, top .17s ease; transform: translate(-50%, -50%); }
-  .pawn.active { animation: bob 1s ease-in-out infinite; }
-  @keyframes bob { 50% { transform: translate(-50%, -65%); } }
-  #tip { position: fixed; z-index: 50; max-width: 260px; pointer-events: none; opacity: 0; transition: opacity .12s; }
-  .die { width: 72px; height: 72px; border-radius: 16px; background: #fff; display: grid; grid-template: repeat(3,1fr)/repeat(3,1fr); padding: 10px;
-         box-shadow: 0 8px 20px #06402b33, inset 0 -4px 0 #0001; flex-shrink: 0; }
-  .die span { width: 12px; height: 12px; border-radius: 50%; background: #065f46; place-self: center; visibility: hidden; }
-  .die.rolling { animation: tumble .6s ease-out; }
-  @keyframes tumble { 0%{transform:rotate(0) scale(1)} 30%{transform:rotate(200deg) scale(1.15)} 70%{transform:rotate(330deg) scale(.95)} 100%{transform:rotate(360deg) scale(1)} }
-  #log li { animation: slidein .3s ease; }
-  @keyframes slidein { from { opacity: 0; transform: translateY(-6px); } }
-  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  :root {
+    --park-forest: #064e3b;
+    --park-emerald: #10b981;
+    --park-lime: #84cc16;
+    --park-gold: #f59e0b;
+    --park-lake: #0284c7;
+    --park-wetland: #0d9488;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Prompt', system-ui, sans-serif;
+    color: #112e23;
+    background: radial-gradient(circle at 15% 15%, #dcfce7 0%, #f0fdf4 45%, #e0f2fe 100%);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  .font-game { font-family: 'Fredoka', 'Prompt', cursive, sans-serif; }
+
+  /* 3D Tactile Buttons */
+  .btn-3d {
+    transition: all 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 6px 0 rgba(0,0,0,0.18), 0 10px 18px rgba(0,0,0,0.12);
+  }
+  .btn-3d:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 0 rgba(0,0,0,0.18), 0 14px 22px rgba(0,0,0,0.15);
+  }
+  .btn-3d:active:not(:disabled) {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 rgba(0,0,0,0.22), 0 4px 8px rgba(0,0,0,0.1);
+  }
+  .btn-green {
+    background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+    border-bottom: 5px solid #046c4e;
+  }
+  .btn-lime {
+    background: linear-gradient(180deg, #bef264 0%, #65a30d 100%);
+    border-bottom: 5px solid #4d7c0f;
+  }
+  .btn-orange {
+    background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
+    border-bottom: 5px solid #b45309;
+  }
+  .btn-blue {
+    background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+    border-bottom: 5px solid #0369a1;
+  }
+
+  /* Glass Card */
+  .game-card {
+    background: rgba(255, 255, 255, 0.90);
+    backdrop-filter: blur(16px);
+    border: 2px solid rgba(255, 255, 255, 0.95);
+    box-shadow: 0 16px 36px rgba(6, 78, 59, 0.12), 0 4px 10px rgba(6, 78, 59, 0.04);
+  }
+
+  /* BIG BOARD STYLING */
+  #board-outer {
+    position: relative;
+    width: 100%;
+    max-width: 820px;
+    margin: 0 auto;
+    border-radius: 32px;
+    background: linear-gradient(145deg, #166534, #064e3b);
+    padding: 12px;
+    box-shadow: 0 24px 60px rgba(6, 78, 59, 0.28), 0 6px 14px rgba(0,0,0,0.1), inset 0 2px 4px rgba(255,255,255,0.3);
+  }
+  #board {
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    grid-template-rows: repeat(10, minmax(0, 1fr));
+    gap: 4px;
+    position: relative;
+    border-radius: 24px;
+    background: #0d3d2e;
+    padding: 6px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  .tile {
+    position: relative;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 2px 3px;
+    user-select: none;
+    cursor: pointer;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.1), inset 0 1px 1px rgba(255,255,255,0.6);
+    transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease;
+  }
+  .tile:hover {
+    transform: scale(1.1);
+    z-index: 25;
+    filter: brightness(1.06);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.22);
+  }
+  .tile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    line-height: 1;
+  }
+  .tile-num {
+    font-size: clamp(8px, 1.1vw, 13px);
+    font-weight: 800;
+    line-height: 1;
+    color: #064e3b;
+    opacity: 0.88;
+    font-family: 'Fredoka', sans-serif;
+  }
+  .tile-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    font-size: clamp(10px, 1.4vw, 19px);
+    line-height: 1;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+    min-height: 0;
+    overflow: hidden;
+  }
+  .tile-name {
+    font-size: clamp(5.5px, 0.7vw, 8px);
+    line-height: 1;
+    font-weight: 800;
+    color: #064e3b;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+    height: 9px;
+  }
+  .tile-badge {
+    font-size: clamp(7px, 0.85vw, 10px);
+    line-height: 1;
+    padding: 1px 2px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.92);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+  }
+
+  /* SVG Overlays */
+  #overlay {
+    position: absolute;
+    inset: 6px;
+    width: calc(100% - 12px);
+    height: calc(100% - 12px);
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* Pawns */
+  .pawn {
+    position: absolute;
+    width: 6.8%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    font-size: clamp(14px, 2.5vw, 26px);
+    border: 3.5px solid #fff;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.4), 0 0 0 2px rgba(0,0,0,0.15);
+    transition: left 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+  }
+  .pawn.active {
+    animation: pawn-bounce 0.75s ease-in-out infinite alternate;
+  }
+  @keyframes pawn-bounce {
+    0% { transform: translate(-50%, -50%) scale(1); }
+    100% { transform: translate(-50%, -78%) scale(1.22); filter: drop-shadow(0 12px 14px rgba(0,0,0,0.35)); }
+  }
+
+  /* 3D Dice */
+  .dice-box {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    background: linear-gradient(145deg, #ffffff, #f0fdf4);
+    border: 3.5px solid #34d399;
+    box-shadow: 0 10px 22px rgba(5, 150, 105, 0.25), inset 0 -4px 0 #a7f3d0;
+    display: grid;
+    grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+    padding: 8px;
+    flex-shrink: 0;
+  }
+  .dice-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #047857;
+    place-self: center;
+    visibility: hidden;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.3);
+  }
+  .dice-box.rolling {
+    animation: dice-tumble 0.5s ease-out;
+  }
+  @keyframes dice-tumble {
+    0% { transform: rotate(0deg) scale(1); }
+    30% { transform: rotate(180deg) scale(1.25); }
+    70% { transform: rotate(315deg) scale(0.9); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+
+  .pin-input {
+    letter-spacing: 0.35em;
+    font-weight: 800;
+    font-family: 'Fredoka', 'Prompt', sans-serif;
+  }
+
+  /* Passport Stamp Badge */
+  .stamp-badge {
+    transition: all 0.2s ease;
+  }
+  .stamp-badge.unlocked {
+    filter: grayscale(0);
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  .stamp-badge.locked {
+    filter: grayscale(1);
+    opacity: 0.4;
+  }
 </style>
 </head>
-<body class="min-h-screen text-emerald-950">
-<header class="max-w-7xl mx-auto px-4 pt-6 pb-3 flex flex-wrap items-end justify-between gap-2">
-  <div>
-    <p class="text-xs uppercase tracking-[.2em] text-emerald-700 font-semibold">Bangkok · Khlong Toei</p>
-    <h1 class="display text-3xl sm:text-4xl font-extrabold">Benjakitti Snakes &amp; Ladders</h1>
+<body class="relative flex flex-col min-h-screen">
+
+<!-- Global Audio Mute Toggle Button -->
+<button id="btnSoundToggle" class="fixed top-4 right-4 z-50 w-11 h-11 rounded-2xl game-card flex items-center justify-center text-xl shadow-md hover:scale-105 active:scale-95 transition" title="เปิด/ปิดเสียง">
+  <span id="soundIcon">🔊</span>
+</button>
+
+<!-- ========================================== -->
+<!-- SCREEN 1: หน้าแรก (Splash / Landing Screen) -->
+<!-- ========================================== -->
+<section id="screenHome" class="relative z-10 flex-1 flex flex-col items-center justify-center p-5 text-center min-h-screen">
+  <div class="max-w-md w-full">
+    <!-- Park Badge -->
+    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-100/90 text-emerald-800 border border-emerald-300 font-bold text-xs uppercase tracking-wider mb-4 shadow-sm">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+      Benjakitti Forest Park · Bangkok
+    </div>
+
+    <!-- Game Title -->
+    <div class="relative my-2">
+      <div class="text-6xl sm:text-7xl mb-2 filter drop-shadow-md">🌿🎲🪜</div>
+      <h1 class="font-game text-4xl sm:text-5xl font-extrabold text-emerald-950 tracking-tight leading-tight drop-shadow-sm">
+        บันไดงูสวนเบญฯ
+      </h1>
+      <p class="font-game text-xl sm:text-2xl font-bold text-emerald-600 mt-1">
+        Benjakitti Forest Walk
+      </p>
+      <p class="text-xs text-emerald-800/80 mt-2 font-medium">ผจญภัยแผนที่จริง 8 โซนแลนด์มาร์คสวนป่าเบญจกิตติ</p>
+    </div>
+
+    <!-- Park Scene Graphic -->
+    <div class="my-6 relative py-3">
+      <div class="w-48 h-48 mx-auto rounded-3xl bg-gradient-to-tr from-emerald-400 via-teal-300 to-lime-300 flex items-center justify-center shadow-2xl shadow-emerald-900/18 border-4 border-white transform -rotate-2 hover:rotate-0 transition duration-300">
+        <div class="text-7xl filter drop-shadow-lg">🦊🏃‍♂️💨</div>
+      </div>
+    </div>
+
+    <!-- The ONE primary PLAY button (Requirement 3: หน้าแรกมีแค่ให้กดปุ่ม Play) -->
+    <button id="btnPlay" class="w-full max-w-xs mx-auto py-5 px-8 rounded-3xl btn-3d btn-green text-white font-game text-2xl font-extrabold tracking-wide uppercase flex items-center justify-center gap-3">
+      <span>▶️</span> PLAY
+    </button>
   </div>
-  <p class="text-sm text-emerald-800/80 max-w-md">Race from the Dog Park gate to the Grand Lakeside Pavilion. Hover or tap any tile for a park fact.</p>
-</header>
+</section>
 
-<main class="max-w-7xl mx-auto px-4 pb-10 grid lg:grid-cols-[minmax(0,1fr)_360px] gap-5">
-  <section class="bg-white/60 backdrop-blur rounded-3xl p-2 sm:p-4 pb-8 sm:pb-10 shadow-xl shadow-emerald-900/10 ring-1 ring-emerald-900/5">
-    <div id="board"></div>
-  </section>
+<!-- ========================================== -->
+<!-- SCREEN 2: เลือกโหมดการเล่น (Mode Selection) -->
+<!-- ========================================== -->
+<section id="screenMode" class="hidden relative z-10 flex-1 flex flex-col items-center justify-center p-5 text-center min-h-screen">
+  <div class="max-w-lg w-full">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <button id="btnBackToHome" class="w-11 h-11 rounded-2xl game-card flex items-center justify-center text-xl shadow hover:scale-105 active:scale-95 transition">
+        ←
+      </button>
+      <h2 class="font-game text-2xl sm:text-3xl font-extrabold text-emerald-950">เลือกโหมดเกม</h2>
+      <div class="w-11"></div>
+    </div>
 
-  <aside class="flex flex-col gap-4">
-    <div id="lobby" class="bg-white rounded-3xl p-5 shadow-lg ring-1 ring-emerald-900/5">
-      <h2 class="display text-xl font-bold mb-3">Start a game</h2>
-      <div class="flex gap-2 mb-4">
-        <button data-mode="local" class="mode-btn flex-1 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white">Hot-seat</button>
-        <button data-mode="room" class="mode-btn flex-1 py-2 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-800">Online</button>
-      </div>
-      <div id="localForm">
-        <label class="text-sm font-medium">Players
-          <select id="count" class="ml-2 rounded-lg border-emerald-200 border px-2 py-1">
-            <option value="1">1 (vs bot)</option><option selected>2</option><option>3</option><option>4</option>
-          </select>
-        </label>
-        <div id="names" class="grid gap-2 mt-3"></div>
-        <button id="startLocal" class="mt-4 w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">Start walk</button>
-      </div>
-      <div id="roomForm" class="hidden">
-        <div id="authBox">
-          <p class="text-xs text-emerald-800/70 mb-3">Sign in to play online with up to 4 friends on any device.</p>
-          <button id="googleBtn" class="w-full py-2 rounded-lg border border-emerald-200 font-semibold mb-2">Continue with Google</button>
-          <div class="flex gap-2">
-            <input id="email" type="email" placeholder="Email" aria-label="Email" class="flex-1 min-w-0 rounded-lg border border-emerald-200 px-3 py-2">
-            <button id="emailBtn" class="px-4 rounded-lg bg-emerald-700 text-white font-semibold">Send link</button>
-          </div>
+    <!-- 2 Main Game Mode Cards -->
+    <div class="grid gap-4 sm:grid-cols-2">
+      <!-- Mode 1: เล่นกับบอท (Play with Bot) -->
+      <button id="btnModeBot" class="game-card p-6 rounded-3xl text-left border-2 border-emerald-200 hover:border-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition group shadow-lg">
+        <div class="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center text-3xl mb-4 group-hover:rotate-6 transition shadow-sm">
+          🤖
         </div>
-        <div id="roomBox" class="hidden">
-          <p class="text-sm">Signed in as <b id="meName"></b> · <button id="signOut" class="underline text-xs">sign out</button></p>
-          <p id="meStats" class="text-xs text-emerald-800/70 mb-3"></p>
-          <button id="createRoom" class="w-full py-2 rounded-lg bg-emerald-600 text-white font-semibold mb-2">Create room</button>
-          <div class="flex gap-2">
-            <input id="roomCode" maxlength="6" placeholder="Room code" aria-label="Room code" class="flex-1 min-w-0 rounded-lg border border-emerald-200 px-3 py-2 uppercase">
-            <button id="joinRoom" class="px-4 rounded-lg bg-emerald-700 text-white font-semibold">Join</button>
-          </div>
-          <ul id="seats" class="mt-3 grid gap-1 text-sm"></ul>
-          <button id="startRoom" class="hidden mt-3 w-full py-3 rounded-xl bg-emerald-700 text-white font-semibold">Start (host)</button>
+        <div class="inline-block px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-bold text-xs mb-1">
+          Solo Player
         </div>
-        <p id="roomStatus" class="text-xs mt-2 text-emerald-700" aria-live="polite"></p>
+        <h3 class="font-game text-xl font-extrabold text-emerald-950">เล่นกับบอท</h3>
+        <p class="text-xs text-emerald-800/70 mt-1 font-medium">เดินเพลินๆ แข่งกับบอทสัตว์เจ้าถิ่นสวนเบญฯ</p>
+      </button>
+
+      <!-- Mode 2: Multiplayer (เล่นหลายคน) -->
+      <button id="btnModeMulti" class="game-card p-6 rounded-3xl text-left border-2 border-emerald-200 hover:border-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition group shadow-lg">
+        <div class="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center text-3xl mb-4 group-hover:-rotate-6 transition shadow-sm">
+          👥
+        </div>
+        <div class="inline-block px-2.5 py-0.5 rounded-full bg-emerald-200 text-emerald-900 font-bold text-xs mb-1">
+          Kahoot PIN
+        </div>
+        <h3 class="font-game text-xl font-extrabold text-emerald-950">Multiplayer</h3>
+        <p class="text-xs text-emerald-800/70 mt-1 font-medium">กดรหัสเข้าห้อง หรือเล่นด้วยกันจอเดียว</p>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================== -->
+<!-- MODAL: ตั้งค่าเล่นกับบอท                   -->
+<!-- ========================================== -->
+<div id="modalBotSetup" class="hidden fixed inset-0 z-40 bg-emerald-950/60 backdrop-blur-md flex items-center justify-center p-4">
+  <div class="game-card w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-game text-xl font-extrabold text-emerald-950">🤖 เล่นกับบอท</h3>
+      <button id="btnCloseBotModal" class="text-gray-400 hover:text-gray-700 text-2xl font-bold">✕</button>
+    </div>
+
+    <div class="mb-4 text-left">
+      <label class="block text-xs font-bold text-emerald-800 mb-1.5">ชื่อของคุณ</label>
+      <input id="botPlayerName" type="text" maxlength="12" value="นักวิ่งสายชิล" class="w-full px-4 py-2.5 rounded-2xl border-2 border-emerald-200 focus:border-emerald-500 font-bold outline-none bg-white">
+    </div>
+
+    <div class="mb-4 text-left">
+      <label class="block text-xs font-bold text-emerald-800 mb-1.5">เลือกตัวละคร</label>
+      <div id="botAvatarList" class="flex gap-2 justify-between"></div>
+    </div>
+
+    <div class="mb-6 text-left">
+      <label class="block text-xs font-bold text-emerald-800 mb-1.5">จำนวนบอทเจ้าถิ่น</label>
+      <div class="grid grid-cols-3 gap-2">
+        <button data-bots="1" class="bot-count-btn py-2 rounded-xl border-2 border-emerald-300 font-bold text-sm bg-emerald-500 text-white">1 บอท</button>
+        <button data-bots="2" class="bot-count-btn py-2 rounded-xl border-2 border-emerald-200 font-bold text-sm bg-white text-emerald-900">2 บอท</button>
+        <button data-bots="3" class="bot-count-btn py-2 rounded-xl border-2 border-emerald-200 font-bold text-sm bg-white text-emerald-900">3 บอท</button>
       </div>
     </div>
 
-    <div id="play" class="hidden bg-white rounded-3xl p-5 shadow-lg ring-1 ring-emerald-900/5">
-      <div id="players" class="grid gap-2 mb-4"></div>
-      <div class="flex items-center gap-4">
-        <div id="die" class="die"></div>
-        <div class="flex-1">
-          <p id="turnText" class="text-sm mb-2 font-medium" aria-live="polite"></p>
-          <button id="roll" class="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-500 disabled:opacity-40 font-bold text-amber-950 shadow">Roll dice</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white rounded-3xl p-5 shadow-lg ring-1 ring-emerald-900/5 flex-1 min-h-[200px]">
-      <h3 class="display font-bold mb-2">Park feed</h3>
-      <ol id="log" class="text-sm grid gap-1.5 max-h-80 overflow-y-auto pr-1"></ol>
-    </div>
-  </aside>
-</main>
-
-<div id="tip" class="bg-emerald-950 text-emerald-50 text-xs rounded-xl p-3 shadow-xl"></div>
-
-<div id="win" class="hidden fixed inset-0 z-40 bg-emerald-950/60 backdrop-blur-sm grid place-items-center p-4">
-  <div class="bg-white rounded-3xl p-8 text-center max-w-sm shadow-2xl">
-    <p class="text-xs uppercase tracking-widest text-emerald-600 font-semibold">Tile 100 · Grand Lakeside Pavilion</p>
-    <h2 id="winText" class="display text-3xl font-extrabold mt-2"></h2>
-    <p class="text-sm text-emerald-800/80 mt-2">Sunset over the lake, the Bangkok skyline behind you. Well walked.</p>
-    <button id="again" class="mt-6 px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold">Play again</button>
+    <button id="btnStartBotGame" class="w-full py-4 rounded-2xl btn-3d btn-green text-white font-game text-lg font-bold">
+      เริ่มเดินสวนเลย! 🏃
+    </button>
   </div>
 </div>
 
+<!-- ======================================================== -->
+<!-- SCREEN 3: Multiplayer Portal (Kahoot-Style Room PIN)     -->
+<!-- ======================================================== -->
+<section id="screenMultiplayer" class="hidden relative z-10 flex-1 flex flex-col items-center justify-center p-4 sm:p-6 min-h-screen">
+  <div class="max-w-md w-full">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-4">
+      <button id="btnBackToMode" class="w-10 h-10 rounded-2xl game-card flex items-center justify-center text-lg shadow hover:scale-105 active:scale-95 transition">
+        ←
+      </button>
+      <h2 class="font-game text-2xl font-extrabold text-emerald-950">Multiplayer</h2>
+      <div class="w-10"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-1.5 p-1.5 bg-emerald-900/10 rounded-2xl mb-4 font-bold text-xs sm:text-sm">
+      <button id="tabJoin" class="flex-1 py-2.5 rounded-xl transition bg-white text-emerald-900 shadow-sm font-bold">
+        🔑 ใส่รหัสห้อง
+      </button>
+      <button id="tabHost" class="flex-1 py-2.5 rounded-xl transition text-emerald-800/80 hover:text-emerald-950 font-bold">
+        👑 สร้างห้อง
+      </button>
+      <button id="tabPass" class="flex-1 py-2.5 rounded-xl transition text-emerald-800/80 hover:text-emerald-950 font-bold">
+        📱 เครื่องเดียว
+      </button>
+    </div>
+
+    <!-- SUBTAB 1: Join Room -->
+    <div id="panelJoin" class="game-card p-6 rounded-3xl shadow-xl">
+      <div class="text-center mb-4">
+        <span class="text-4xl">🎮</span>
+        <h3 class="font-game text-xl font-extrabold text-emerald-950 mt-1">กดรหัส Game PIN</h3>
+      </div>
+      <div class="mb-3">
+        <input id="inputJoinPin" type="text" maxlength="6" placeholder="000000" class="pin-input w-full text-center text-3xl sm:text-4xl py-3 rounded-2xl border-3 border-emerald-400 bg-white font-extrabold text-emerald-900 focus:outline-none focus:ring-4 focus:ring-emerald-300">
+      </div>
+      <div class="mb-3 text-left">
+        <label class="block text-xs font-bold text-emerald-800 mb-1">ชื่อเล่นของคุณ</label>
+        <input id="inputJoinName" type="text" maxlength="12" placeholder="ใส่ชื่อเล่น" class="w-full px-4 py-2.5 rounded-xl border border-emerald-200 font-bold outline-none bg-white">
+      </div>
+      <div class="mb-4 text-left">
+        <label class="block text-xs font-bold text-emerald-800 mb-1">เลือกตัวละคร</label>
+        <div id="joinAvatarList" class="flex gap-2 justify-between"></div>
+      </div>
+      <button id="btnJoinRoom" class="w-full py-4 rounded-2xl btn-3d btn-green text-white font-game text-lg font-bold">
+        เข้าห้องเลย (ENTER) 🚀
+      </button>
+      <p id="joinStatusMsg" class="text-xs text-rose-600 font-bold text-center mt-2 min-h-[16px]"></p>
+    </div>
+
+    <!-- SUBTAB 2: Host Room -->
+    <div id="panelHost" class="hidden game-card p-6 rounded-3xl shadow-xl">
+      <div id="hostSetupView">
+        <div class="text-center mb-4">
+          <span class="text-4xl">👑</span>
+          <h3 class="font-game text-xl font-extrabold text-emerald-950 mt-1">สร้างห้องใหม่</h3>
+          <p class="text-xs text-emerald-800/70">เปิดห้องแล้วบอก Game PIN ให้เพื่อนเข้าเล่น</p>
+        </div>
+        <div class="mb-3 text-left">
+          <label class="block text-xs font-bold text-emerald-800 mb-1">ชื่อ Host</label>
+          <input id="inputHostName" type="text" maxlength="12" value="หัวหน้าทัวร์" class="w-full px-4 py-2.5 rounded-xl border border-emerald-200 font-bold outline-none bg-white">
+        </div>
+        <div class="mb-4 text-left">
+          <label class="block text-xs font-bold text-emerald-800 mb-1">เลือกตัวละคร</label>
+          <div id="hostAvatarList" class="flex gap-2 justify-between"></div>
+        </div>
+        <button id="btnCreateHostRoom" class="w-full py-4 rounded-2xl btn-3d btn-orange text-white font-game text-lg font-bold">
+          เปิดห้อง Game PIN ✨
+        </button>
+      </div>
+
+      <!-- Host Lobby Waiting View -->
+      <div id="hostLobbyView" class="hidden text-center">
+        <div class="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs mb-2">
+          Game PIN
+        </div>
+        <div class="flex items-center justify-center gap-2 mb-3">
+          <div id="displayHostPin" class="pin-input text-4xl sm:text-5xl font-extrabold text-emerald-900 bg-emerald-50 px-5 py-2.5 rounded-2xl border-2 border-emerald-300 shadow-inner">
+            ------
+          </div>
+          <button id="btnCopyPin" class="w-12 h-12 rounded-xl bg-white border border-emerald-200 text-xl flex items-center justify-center hover:bg-emerald-100 transition shadow" title="คัดลอกรหัส">
+            📋
+          </button>
+        </div>
+        <p class="text-xs text-emerald-800/70 mb-4 font-medium">บอกรหัสนี้ให้เพื่อนกดเข้าห้อง</p>
+        <div class="text-left bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200/60 mb-4">
+          <div class="flex justify-between items-center mb-2 px-1">
+            <span class="text-xs font-bold text-emerald-900">ผู้เล่นในห้อง</span>
+            <span id="playerCountBadge" class="text-xs font-extrabold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-800">1/4</span>
+          </div>
+          <div id="lobbyPlayersList" class="grid gap-2"></div>
+        </div>
+        <button id="btnHostStartGame" class="w-full py-4 rounded-2xl btn-3d btn-green text-white font-game text-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+          เริ่มเกมเลย (START) 🏁
+        </button>
+        <p id="hostMinWarning" class="text-[11px] text-emerald-800/60 mt-2 font-medium">ต้องมีผู้เล่นอย่างน้อย 2 คนเพื่อเริ่มเกม</p>
+      </div>
+    </div>
+
+    <!-- SUBTAB 3: Pass & Play -->
+    <div id="panelPass" class="hidden game-card p-6 rounded-3xl shadow-xl">
+      <div class="text-center mb-4">
+        <span class="text-4xl">📱</span>
+        <h3 class="font-game text-xl font-extrabold text-emerald-950 mt-1">เล่นเครื่องเดียวกัน</h3>
+        <p class="text-xs text-emerald-800/70">ผลัดกันทอยลูกเต๋าบนหน้าจอเดียว</p>
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs font-bold text-emerald-800 mb-1.5">จำนวนผู้เล่น</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button data-count="2" class="pass-count-btn py-2 rounded-xl border-2 border-emerald-300 font-bold text-sm bg-emerald-500 text-white">2 คน</button>
+          <button data-count="3" class="pass-count-btn py-2 rounded-xl border-2 border-emerald-200 font-bold text-sm bg-white text-emerald-900">3 คน</button>
+          <button data-count="4" class="pass-count-btn py-2 rounded-xl border-2 border-emerald-200 font-bold text-sm bg-white text-emerald-900">4 คน</button>
+        </div>
+      </div>
+      <div id="passPlayersInputs" class="grid gap-2 mb-4"></div>
+      <button id="btnStartPassPlay" class="w-full py-4 rounded-2xl btn-3d btn-green text-white font-game text-lg font-bold">
+        เริ่มเล่นเลย! 🎯
+      </button>
+    </div>
+
+    <!-- Waiting Screen for Joined Guest Player -->
+    <div id="panelGuestWaiting" class="hidden game-card p-6 rounded-3xl shadow-xl text-center">
+      <div class="w-20 h-20 mx-auto rounded-full bg-emerald-100 flex items-center justify-center text-4xl mb-3 animate-bounce">
+        🎉
+      </div>
+      <h3 class="font-game text-2xl font-extrabold text-emerald-950">คุณเข้าร่วมแล้ว!</h3>
+      <p class="text-xs text-emerald-800/70 mt-1">รหัสห้อง: <span id="guestDisplayPin" class="font-bold text-emerald-900 font-game">------</span></p>
+      <div class="my-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+        <div id="guestMyAvatar" class="text-4xl mb-1">🦊</div>
+        <div id="guestMyName" class="font-game text-lg font-extrabold text-emerald-900">Runner</div>
+        <p class="text-xs text-emerald-600 font-bold mt-2 animate-pulse">⏳ กำลังรอ Host สั่งเริ่มเกม...</p>
+      </div>
+      <button id="btnLeaveLobby" class="text-xs text-rose-600 font-bold underline hover:text-rose-800">
+        ออกจากห้อง
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ========================================== -->
+<!-- SCREEN 4: หน้ากระดานเกม (BIG BOARD REDESIGN) -->
+<!-- ========================================== -->
+<section id="screenGame" class="hidden relative z-10 flex-1 flex flex-col p-2 sm:p-4 max-w-7xl mx-auto w-full">
+  <!-- Minimal Top Nav -->
+  <header class="flex items-center justify-between gap-2 mb-3 px-2">
+    <!-- Left: Home & Park Guide Drawer Button -->
+    <div class="flex items-center gap-2">
+      <button id="btnGameHome" class="px-3.5 py-2 rounded-2xl game-card font-bold text-xs flex items-center gap-1.5 shadow-sm hover:bg-emerald-50 transition" title="กลับหน้าแรก">
+        <span>🏠</span> หน้าแรก
+      </button>
+      <button id="btnOpenParkGuide" class="px-3.5 py-2 rounded-2xl game-card font-bold text-xs flex items-center gap-1.5 text-emerald-800 shadow-sm hover:bg-emerald-50 transition">
+        <span>📖</span> แผนที่จริงสวนเบญฯ
+      </button>
+    </div>
+
+    <!-- Center: Zone Indicator & Game PIN -->
+    <div class="flex items-center gap-2">
+      <div id="gameRoomPinBadge" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100 border border-amber-300 text-amber-900 font-extrabold text-xs shadow-sm cursor-pointer" title="คลิกเพื่อคัดลอก PIN">
+        <span>🎮 PIN:</span> <span id="gamePinText" class="font-game">------</span>
+      </div>
+      <div id="currentZonePill" class="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/90 border border-emerald-300 text-xs font-extrabold text-emerald-900 shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span id="currentZoneName">1. ทางเข้า & สวนสุนัข</span>
+      </div>
+    </div>
+
+    <!-- Right: Passport Stamps & Reset -->
+    <div class="flex items-center gap-2">
+      <button id="btnPassport" class="px-3.5 py-2 rounded-2xl game-card font-bold text-xs flex items-center gap-1.5 text-amber-800 hover:bg-amber-50 transition" title="พาสปอร์ตตราประทับสวนเบญฯ">
+        <span>🎖️</span> ตราประทับ (<span id="passportCount">0/6</span>)
+      </button>
+      <button id="btnRestartGame" class="w-9 h-9 rounded-2xl game-card font-bold text-sm flex items-center justify-center hover:bg-emerald-50 transition" title="เริ่มเกมใหม่">
+        ↺
+      </button>
+    </div>
+  </header>
+
+  <!-- Big Board Layout Grid: Board in Center/Left, Dynamic Game HUD on Right -->
+  <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
+    
+    <!-- BIG 10x10 Board Section -->
+    <div class="flex flex-col items-center">
+      <div id="board-outer">
+        <div id="board"></div>
+        <svg id="overlay"></svg>
+      </div>
+    </div>
+
+    <!-- Right Side: Game Controls, Dice, Event Toast & Scoreboard -->
+    <aside class="flex flex-col gap-3 w-full">
+      
+      <!-- Current Turn & Dice Roll Card -->
+      <div class="game-card p-4 rounded-3xl shadow-lg border-2 border-emerald-300">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
+            <span id="turnLabel" class="text-xs font-extrabold uppercase tracking-wider text-emerald-800">ถึงตาเดิน</span>
+          </div>
+          <span id="turnStatusBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">ทอยเต๋าได้เลย</span>
+        </div>
+
+        <!-- Current Player Card -->
+        <div id="turnPlayerCard" class="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-emerald-50 to-lime-50 border border-emerald-200 mb-3">
+          <div id="turnPlayerAvatar" class="w-14 h-14 rounded-2xl bg-white shadow-md flex items-center justify-center text-3xl border-2 border-emerald-400">
+            🦊
+          </div>
+          <div class="flex-1 min-w-0">
+            <h4 id="turnPlayerName" class="font-game text-lg font-extrabold text-emerald-950 truncate">Player</h4>
+            <p id="turnPlayerSub" class="text-xs text-emerald-700 font-semibold truncate">ช่อง 0 · ประตูรัชดาฯ</p>
+          </div>
+        </div>
+
+        <!-- Dice Roll Control Area -->
+        <div class="flex items-center gap-3 p-2 rounded-2xl bg-white/80 border border-emerald-100">
+          <div id="die" class="dice-box"></div>
+          <div class="flex-1">
+            <button id="btnRoll" class="w-full py-4 px-4 rounded-2xl btn-3d btn-green text-white font-game text-xl font-extrabold tracking-wide flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+              <span>🎲</span> ทอยเต๋า!
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Event Toast Bubble (Punchy & Fun) -->
+      <div id="eventToast" class="game-card px-4 py-3 rounded-2xl shadow border border-emerald-200 flex items-center gap-3">
+        <span id="eventIcon" class="text-3xl flex-shrink-0">🚩</span>
+        <div class="flex-1 min-w-0">
+          <p id="eventText" class="text-xs font-bold text-emerald-950 leading-snug">
+            ยินดีต้อนรับสู่สวนป่าเบญจกิตติ! ออกสตาร์ทจากประตูรัชดาภิเษก
+          </p>
+          <span id="eventSub" class="text-[10px] text-emerald-700 font-medium">เดินชมธรรมชาติกลางกรุงมุ่งสู่ศาลาริมน้ำ</span>
+        </div>
+      </div>
+
+      <!-- Player Leaderboard & Progress -->
+      <div class="game-card p-4 rounded-3xl shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <h4 class="font-game text-sm font-extrabold text-emerald-950">อันดับผู้เล่น (Leaderboard)</h4>
+          <span class="text-xs text-emerald-700 font-semibold font-game">เป้าหมาย: ช่อง 100 🏆</span>
+        </div>
+        <div id="playersProgressList" class="grid gap-2"></div>
+      </div>
+
+    </aside>
+
+  </div>
+</section>
+
+<!-- ======================================================== -->
+<!-- MODAL: แผนที่จริง & ข้อมูลสถานที่สวนเบญจกิตติ (Park Guide) -->
+<!-- ======================================================== -->
+<div id="modalParkGuide" class="hidden fixed inset-0 z-50 bg-emerald-950/70 backdrop-blur-md flex items-center justify-center p-4">
+  <div class="game-card w-full max-w-lg max-h-[85vh] rounded-[32px] p-6 shadow-2xl flex flex-col animate-in">
+    <div class="flex items-center justify-between pb-3 border-b border-emerald-200 mb-4">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">🌿</span>
+        <div>
+          <h3 class="font-game text-xl font-extrabold text-emerald-950">สถานที่จริงในสวนเบญจกิตติ</h3>
+          <p class="text-[11px] text-emerald-700 font-medium">สวนป่านิเวศน์ 450 ไร่ ใจกลางอโศก-คลองเตย</p>
+        </div>
+      </div>
+      <button id="btnCloseParkGuide" class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-900 font-bold flex items-center justify-center hover:bg-emerald-200">✕</button>
+    </div>
+
+    <!-- Scrollable Real Benjakitti Highlights -->
+    <div class="overflow-y-auto pr-1 grid gap-3 text-left" id="guideLandmarksList"></div>
+  </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- MODAL: พาสปอร์ตตราประทับสวนเบญฯ (Passport Stamps)       -->
+<!-- ======================================================== -->
+<div id="modalPassport" class="hidden fixed inset-0 z-50 bg-emerald-950/70 backdrop-blur-md flex items-center justify-center p-4">
+  <div class="game-card w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center animate-in">
+    <div class="flex items-center justify-between pb-3 border-b border-emerald-200 mb-4">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">🎖️</span>
+        <h3 class="font-game text-xl font-extrabold text-emerald-950">Benjakitti Passport</h3>
+      </div>
+      <button id="btnClosePassport" class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-900 font-bold flex items-center justify-center hover:bg-emerald-200">✕</button>
+    </div>
+
+    <p class="text-xs text-emerald-800/80 mb-4 font-medium">เดินผ่านแลนด์มาร์คสำคัญเพื่อสะสมตราประทับของสวนเบญฯ!</p>
+    <div id="passportStampsGrid" class="grid grid-cols-3 gap-3 mb-4"></div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL: ชัยชนะ! Winner Celebration Modal    -->
+<!-- ========================================== -->
+<div id="modalWin" class="hidden fixed inset-0 z-50 bg-emerald-950/75 backdrop-blur-md flex items-center justify-center p-4">
+  <div class="game-card w-full max-w-sm rounded-[32px] p-6 text-center shadow-2xl border-4 border-yellow-300 animate-in">
+    <div class="w-24 h-24 mx-auto mb-3 rounded-full bg-gradient-to-tr from-amber-300 to-yellow-100 flex items-center justify-center text-5xl shadow-xl shadow-amber-500/20 border-4 border-white animate-bounce">
+      🏆
+    </div>
+    <div class="inline-block px-3 py-1 rounded-full bg-amber-100 text-amber-800 font-extrabold text-xs uppercase tracking-wider mb-2">
+      ศาลาริมน้ำเบญจกิตติ (Lakeside Pavilion)
+    </div>
+    <h3 id="winPlayerName" class="font-game text-3xl font-extrabold text-emerald-950 mt-1">ผู้ชนะ!</h3>
+    <p class="text-xs text-emerald-800/80 mt-1 font-medium">เข้าถึงจุดชมวิวพระอาทิตย์ตกริมทะเลสาบเป็นคนแรก!</p>
+
+    <div class="mt-6 flex flex-col gap-2">
+      <button id="btnWinPlayAgain" class="w-full py-4 rounded-2xl btn-3d btn-green text-white font-game text-lg font-bold">
+        เล่นใหม่อีกครั้ง ↺
+      </button>
+      <button id="btnWinHome" class="w-full py-3 rounded-2xl bg-white border border-emerald-200 text-emerald-900 font-bold text-sm hover:bg-emerald-50 transition">
+        กลับหน้าหลัก 🏠
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- JAVASCRIPT LOGIC                            -->
+<!-- ========================================== -->
 <script>
-// ---------- Data ----------
+// ==========================================
+// 1. SOUND FX & RELAXING BGM (Web Audio API)
+// ==========================================
+class SoundFX {
+  constructor() {
+    this.ctx = null;
+    this.muted = localStorage.getItem('park_sound_muted') === 'true';
+    this.bgmPlaying = false;
+    this.bgmTimer = null;
+    this.bgmGain = null;
+    this.updateIcon();
+  }
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        this.ctx = new AudioCtx();
+        this.bgmGain = this.ctx.createGain();
+        // Gentle soft background volume (~0.04)
+        this.bgmGain.gain.setValueAtTime(this.muted ? 0 : 0.04, this.ctx.currentTime);
+        this.bgmGain.connect(this.ctx.destination);
+      }
+    }
+  }
+  startBGM() {
+    if (this.bgmPlaying) return;
+    this.init();
+    if (!this.ctx) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    this.bgmPlaying = true;
+    this.scheduleBGM();
+  }
+  scheduleBGM() {
+    // 16-step soothing kalimba/acoustic park walk progression (Cmaj7 -> Am7 -> Fmaj7 -> G7)
+    const melody = [
+      ['C3', 0, 1.8, true], ['G4', 0, 0.45], ['E4', 1, 0.45], ['B4', 2, 0.55], ['G4', 3, 0.45],
+      ['A2', 4, 1.8, true], ['C5', 4, 0.55], ['A4', 5, 0.45], ['E4', 6, 0.55], ['G4', 7, 0.45],
+      ['F2', 8, 1.8, true], ['A4', 8, 0.55], ['C5', 9, 0.45], ['E5', 10, 0.65], ['C5', 11, 0.45],
+      ['G2', 12, 1.8, true], ['D5', 12, 0.55], ['B4', 13, 0.45], ['G4', 14, 0.55], ['D4', 15, 0.45],
+    ];
+    const stepTime = 0.48; // Gentle relaxing tempo
+    const totalTime = 16 * stepTime;
+
+    const loop = () => {
+      if (!this.bgmPlaying) return;
+      const now = this.ctx.currentTime;
+      melody.forEach(([note, step, dur, isBass]) => {
+        const time = now + step * stepTime;
+        this.playBGMNote(note, time, dur, isBass);
+      });
+      this.bgmTimer = setTimeout(loop, totalTime * 1000 - 30);
+    };
+    loop();
+  }
+  playBGMNote(note, startTime, duration, isBass = false) {
+    if (!this.ctx || !this.bgmGain) return;
+    try {
+      const freq = this.noteFreq(note);
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      osc.type = isBass ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(isBass ? 320 : 1500, startTime);
+
+      const maxGain = isBass ? 0.35 : 0.55;
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(maxGain, startTime + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.bgmGain);
+
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.1);
+    } catch(e) {}
+  }
+  noteFreq(note) {
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const name = note.slice(0, -1);
+    const oct = parseInt(note.slice(-1));
+    const semitones = notes.indexOf(name) + (oct - 4) * 12;
+    return 440 * Math.pow(2, (semitones - 9) / 12);
+  }
+  toggle() {
+    this.muted = !this.muted;
+    localStorage.setItem('park_sound_muted', this.muted);
+    this.updateIcon();
+    if (this.bgmGain && this.ctx) {
+      const now = this.ctx.currentTime;
+      this.bgmGain.gain.setValueAtTime(this.bgmGain.gain.value, now);
+      this.bgmGain.gain.linearRampToValueAtTime(this.muted ? 0 : 0.04, now + 0.25);
+    }
+    if (!this.muted) {
+      this.startBGM();
+      this.playPop();
+    }
+  }
+  updateIcon() {
+    const el = document.getElementById('soundIcon');
+    if (el) el.textContent = this.muted ? '🔇' : '🔊';
+  }
+  playTone(freq, type = 'sine', duration = 0.1, gainVal = 0.15) {
+    if (this.muted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + duration);
+    } catch(e) {}
+  }
+  playPop() { this.playTone(580, 'sine', 0.08, 0.2); }
+  playStep() { this.playTone(440, 'triangle', 0.06, 0.12); }
+  playLadder() {
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+      setTimeout(() => this.playTone(f, 'sine', 0.18, 0.2), i * 75);
+    });
+  }
+  playSnake() {
+    [600, 520, 450, 360].forEach((f, i) => {
+      setTimeout(() => this.playTone(f, 'sawtooth', 0.12, 0.12), i * 70);
+    });
+  }
+  playDice() {
+    for (let i = 0; i < 6; i++) {
+      setTimeout(() => this.playTone(200 + Math.random() * 300, 'square', 0.04, 0.06), i * 50);
+    }
+  }
+  playWin() {
+    [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => {
+      setTimeout(() => this.playTone(f, 'triangle', 0.35, 0.25), i * 110);
+    });
+  }
+}
+const sfx = new SoundFX();
+document.getElementById('btnSoundToggle').onclick = () => sfx.toggle();
+
+// Auto-start soft BGM on first user interaction anywhere
+const startBGMOnGesture = () => {
+  sfx.startBGM();
+  window.removeEventListener('pointerdown', startBGMOnGesture);
+  window.removeEventListener('keydown', startBGMOnGesture);
+};
+window.addEventListener('pointerdown', startBGMOnGesture, { once: true });
+window.addEventListener('keydown', startBGMOnGesture, { once: true });
+
+// ===================================================================
+// 2. AUTHENTIC BENJAKITTI PARK REAL LOCATIONS & 8 THEMED ZONES
+// ===================================================================
+const AVATARS = ['🦊', '🐼', '🐸', '🐥', '🐰', '🐯'];
+const COLORS = ['#059669', '#0284c7', '#d97706', '#e11d48'];
+
+// 8 Real Physical Zones in Benjakitti Forest Park
 const ZONES = [
-  { to: 10,  name: 'Dog Park & Entrance', color: '#d9f99d', fact: 'Benjakitti Forest Park opened in phases (2021–2022) on the former Thailand Tobacco Monopoly site, growing the park to about 450 rai.' },
-  { to: 30,  name: 'Bicycle Track', color: '#bbf7d0', fact: 'A long dedicated cycling loop circles the park, busiest at dawn and dusk when Bangkok cools down.' },
-  { to: 50,  name: 'Wetlands / Ecological Park', color: '#99f6e4', fact: 'Constructed wetlands filter water from the lake and nearby canal through layered planting — a living treatment system.' },
-  { to: 65,  name: 'Skywalk', color: '#a7f3d0', fact: 'The elevated walkway lets visitors stroll above the wetland canopy and links toward Benjasiri Park and Sukhumvit.' },
-  { to: 80,  name: 'Indoor Sports Complex', color: '#fde68a', fact: 'Old tobacco warehouses were kept and repurposed into sports halls and public facilities.' },
-  { to: 90,  name: 'Amphitheatre', color: '#fed7aa', fact: 'Open-air terraced seating hosts concerts, events and morning exercise groups.' },
-  { to: 99,  name: 'The Lake', color: '#bae6fd', fact: 'The large central lake (once called Lake Rajada) anchors the original park and mirrors the city skyline.' },
-  { to: 100, name: 'Grand Lakeside Pavilion', color: '#fcd34d', fact: 'The finish! Watch the sunset over the lake, with the Queen Sirikit Convention Centre nearby.' },
+  { to: 10,  id: 1, name: 'ทางเข้าหลัก & สวนสุนัข (Dog Park)', color: '#ecfccb', icon: '🐕' },
+  { to: 25,  id: 2, name: 'ลู่ปั่นจักรยาน & ทางลาดสกายวอล์ค', color: '#dcfce7', icon: '🚲' },
+  { to: 45,  id: 3, name: 'พื้นที่ชุ่มน้ำบึงบัว (Wetland Sponge City)', color: '#ccfbf1', icon: '🪷' },
+  { to: 65,  id: 4, name: 'สกายวอล์คเรือนยอดไม้ & จามจุรีโบราณ', color: '#a7f3d0', icon: '🌉' },
+  { to: 80,  id: 5, name: 'โกดังยาสูบอนุรักษ์ & ศูนย์กีฬาในร่ม', color: '#fef3c7', icon: '🏟️' },
+  { to: 90,  id: 6, name: 'อัฒจันทร์หญ้ากลางแจ้ง (Amphitheatre)', color: '#fed7aa', icon: '🎭' },
+  { to: 99,  id: 7, name: 'ทะเลสาบใหญ่เบญจกิตติ & ลู่วิ่งริมน้ำ', color: '#bae6fd', icon: '🌅' },
+  { to: 100, id: 8, name: 'ศาลาริมน้ำและจุดชมวิวพระอาทิตย์ตก', color: '#fde047', icon: '🏆' },
 ];
+
+// Authentic landmarks of Benjakitti Forest Park on specific tiles
 const MILESTONES = {
-  1: ['Main Gate', 'Start your walk at the Ratchadaphisek Road side of the park.'],
-  4: ['Bike Rental', 'Rent a bicycle near the entrance to cover the big loop.'],
-  7: ['Dog Park', 'A fenced off-leash area — one of few places in central Bangkok for dogs to run free.'],
-  13: ['Boardwalk Start', 'Wooden boardwalks thread through the wetlands just above the water.'],
-  20: ['Cycling Loop', 'The track is separated from walkers to keep everyone safe.'],
-  27: ['Open Lawn', 'Wide lawns with little shade — a downpour here catches everyone.'],
-  33: ['Skywalk Ramp', 'Ramps lead up to the elevated walkway for a bird’s-eye view.'],
-  40: ['Marsh Edge', 'Dense reeds and grasses give habitat to birds and insects.'],
-  45: ['Bird Hide', 'Watch herons, kingfishers and monitor lizards in the wetlands.'],
-  54: ['Marsh Maze', 'Winding paths among tall reeds — easy to lose your way.'],
-  57: ['Skywalk Deck', 'The elevated path weaves through the tree canopy, several metres up.'],
-  62: ['Rain Tree Grove', 'Large shade trees planted to cool the park as they grow.'],
-  69: ['Warehouse Hall', 'Brick tobacco warehouses reused as indoor sports spaces.'],
-  74: ['Running Track', 'An athletics track beside the sports complex.'],
-  76: ['Courts', 'Sports courts open to the public.'],
-  81: ['Amphitheatre', 'Terraced seating facing the green stage.'],
-  89: ['Stage Steps', 'Steep steps — mind your footing after a show.'],
-  92: ['Lakeside Path', 'A shaded path wrapping around the lake.'],
-  97: ['Lake Plaza', 'A broad open plaza in full afternoon sun.'],
-  100: ['Lakeside Pavilion', 'The goal of every walk in this game.'],
+  1:   { name: 'ประตูรัชดาฯ', icon: '🚩', desc: 'จุดสตาร์ทใกล้ MRT ศูนย์สิริกิติ์ ทางเข้าหลักฝั่งถนนรัชดาภิเษก' },
+  4:   { name: 'จุดเช่าจักรยาน', icon: '🚲', desc: 'จุดบริการยืม-คืนจักรยาน สำหรับปั่นรอบสวน 1.8 กม.' },
+  7:   { name: 'สวนสุนัข Dog Park', icon: '🐕', desc: 'โซนสนามหญ้าเปิดโล่งสำหรับพาสัตว์เลี้ยงมาวิ่งเล่น' },
+  13:  { name: 'สะพานไม้บึงบัว', icon: '🪵', desc: 'สะพานไม้ลอยน้ำลัดเลาะผ่านดงบัวหลวงและเกาะพืชน้ำ' },
+  20:  { name: 'จุดชมเกาะพืชน้ำ', icon: '🌾', desc: 'เกาะดินทรงกลมที่ปลูกพืชซับน้ำหลากตามแนวคิด Sponge City' },
+  27:  { name: 'ลานกว้างไร้เงา', icon: '🌧️', desc: 'ลานสนามหญ้ากว้างโล่ง ฝนตกหนักจะไม่มีที่หลบฝน' },
+  33:  { name: 'ทางลาด Skywalk', icon: '♿', desc: 'ทางลาดเหล็ก Universal Design อำนวยความสะดวกให้วีลแชร์และทุกคน' },
+  40:  { name: 'ดงพงหญ้าชุ่มน้ำ', icon: '🦎', desc: 'ที่อยู่อาศัยของนกน้ำและตัวเงินตัวทองเจ้าถิ่นสวนเบญฯ' },
+  42:  { name: 'จุดชมนกกระเต็น', icon: '🦜', desc: 'หอส่องนกชมนกยางเปีย นกกระเต็นอกขาว และนกอีลุ้ม' },
+  50:  { name: 'โกดังยาสูบ 5', icon: '🏭', desc: 'อาคารโกดังเก่าแก่สมัยโรงงานยาสูบ อนุรักษ์สถาปัตยกรรมโมเดิร์น' },
+  54:  { name: 'ดงต้นกกบำบัดน้ำ', icon: '🌾', desc: 'แนวต้นกกกรองน้ำเสียจากคลองไผ่สิงโตเข้าสู่สวน' },
+  57:  { name: 'จุดชมยอดไม้ Skywalk', icon: '🌉', desc: 'สะพานลอยฟ้าสูงเหนือยอดไม้ มองเห็นวิวตึกระฟ้าใจกลางอโศก' },
+  62:  { name: 'ดงจามจุรีอนุรักษ์', icon: '🌳', desc: 'ต้นจามจุรีโบราณอายุกว่า 50 ปี แผ่กิ่งก้านให้ร่มเงาเย็นสบาย' },
+  69:  { name: 'ศูนย์กีฬาในร่ม', icon: '🏟️', desc: 'โกดังปรับปรุงเป็นสนามแบดมินตัน พิกเคิลบอล และบาสเกตบอล' },
+  74:  { name: 'ลานสเก็ตบอร์ด', icon: '🛹', desc: 'สนามโรลเลอร์เบลดและ Skate Park ยอดฮิตของวัยรุ่น' },
+  76:  { name: 'ลานกีฬาเปิดโล่ง', icon: '🏀', desc: 'สนามสตรีทบาสเกตบอลกลางแจ้ง' },
+  81:  { name: 'อัฒจันทร์กลางแจ้ง', icon: '🎭', desc: 'ขั้นบันไดหญ้าทรงกลม สถานที่จัดแสดงดนตรีในสวน' },
+  89:  { name: 'บันไดเวทีอัฒจันทร์', icon: '🪜', desc: 'ทางขึ้นลงเวทีกลางแจ้ง' },
+  92:  { name: 'ลู่วิ่งรอบทะเลสาบ', icon: '🏃', desc: 'ลู่วิ่งยางสังเคราะห์สีฟ้าเลียบผิวน้ำทะเลสาบใหญ่' },
+  97:  { name: 'ลานพลาซ่าริมน้ำ', icon: '☀️', desc: 'ลานจัดกิจกรรมกลางแจ้ง ลมพัดโกรกจากบึงน้ำ' },
+  100: { name: 'ศาลาริมน้ำเบญจกิตติ', icon: '🏆', desc: 'จุดเส้นชัย ชมวิวพระอาทิตย์ตกดินสะท้อนเงาตึกสูงกรุงเทพฯ' },
 };
+
+// Ladders: Real shortcuts and fortunate discoveries in Benjakitti Park
 const LADDERS = {
-  4:  [25, 'Rented a bicycle for a fast track!'],
-  13: [46, 'Strolled through the shaded wetland boardwalk!'],
-  33: [57, 'Took the elevated Skywalk shortcut!'],
-  42: [63, 'Spotted a kingfisher and followed it along the trail!'],
-  50: [69, 'Found a cool shortcut to the Sports Complex!'],
-  62: [81, 'Followed the shady rain-tree path!'],
-  74: [92, 'Sprinted the running track straight to the lake!'],
+  4:  [25, '🚲 เช่าจักรยาน ปั่นเข้าสู่เลนเฉพาะฉิวยาว!'],
+  13: [46, '🪵 ข้ามสะพานไม้ลอยน้ำ ลัดตัดตรงสู่ใจกลางบึง!'],
+  33: [57, '🌉 เดินขึ้น Skywalk ลอยฟ้า ลัดข้ามบึงน้ำสู่เรือนยอดไม้!'],
+  42: [63, '🦜 ส่องพบนกกระเต็น เดินลัดเลาะตามทางดูนกสู่ดงจามจุรี!'],
+  50: [69, '🏭 เดินทะลุโกดังยาสูบติดแอร์ ลัดเข้าสู่ศูนย์กีฬา!'],
+  62: [81, '🌳 เดินใต้ร่มเงาต้นจามจุรีโบราณ สปีดลัดสู่อัฒจันทร์!'],
+  74: [92, '🏃 สปีดบนลู่วิ่งยางสังเคราะห์ พุ่งตรงสู่ทะเลสาบใหญ่!'],
 };
+
+// Snakes: Real obstacles and hazards in Benjakitti Park
 const SNAKES = {
-  27: [5,  'Sudden tropical rain downpour — seek shelter!'],
-  40: [3,  'A monitor lizard blocked the path — back toward the gate!'],
-  54: [31, 'Got lost in the dense marsh maze.'],
-  76: [58, 'Twisted an ankle on the courts.'],
-  89: [53, 'Tumbled down the amphitheatre steps.'],
-  97: [78, 'Sunburnt and exhausted by the open lake plaza.'],
+  27: [5,  '🌧️ พายุฝนตกกระหน่ำกลางลานโล่ง ต้องวิ่งหลบกลับศาลาทางเข้า!'],
+  40: [3,  '🦎 "น้องเหี้ย" ขนาดยักษ์นอนขวางสะพานไม้ ตกใจถอยหลัง!'],
+  54: [31, '🌾 หลงเข้าไปในดงต้นกกบำบัดน้ำ หาทางออกไม่เจอ!'],
+  76: [58, '🛹 สะดุดขอบลานสเก็ตบอร์ด เจ็บข้อเท้า ต้องนั่งพักปฐมพยาบาล!'],
+  89: [53, '🎭 ก้าวพลาดสะดุดขั้นบันไดหญ้าอัฒจันทร์กลางแจ้ง!'],
+  97: [78, '☀️ แดดบ่ายเผากลางลานทะเลสาบ หน้ามืดแวะพักดื่มน้ำ!'],
 };
-const COLORS = ['#059669', '#0284c7', '#f59e0b', '#e11d48'];
-const COLOR_NAMES = ['Emerald', 'Sky', 'Amber', 'Rose'];
 
-// self-check: board data valid
-for (const [a, [b]] of Object.entries(LADDERS)) console.assert(+a < b && b <= 100 && !SNAKES[a], 'bad ladder', a);
-for (const [a, [b]] of Object.entries(SNAKES)) console.assert(+a > b && b >= 1 && +a < 100 && !LADDERS[a], 'bad snake', a);
+// 6 Collectible Passport Stamps of Benjakitti
+const PASSPORT_STAMPS = [
+  { id: 'dog', name: 'สวนสุนัข', icon: '🐕', tile: 7 },
+  { id: 'lotus', name: 'สะพานไม้บึงบัว', icon: '🪷', tile: 13 },
+  { id: 'skywalk', name: 'Canopy Skywalk', icon: '🌉', tile: 57 },
+  { id: 'tree', name: 'จามจุรีโบราณ', icon: '🌳', tile: 62 },
+  { id: 'stadium', name: 'โกดังศูนย์กีฬา', icon: '🏟️', tile: 69 },
+  { id: 'lake', name: 'ทะเลสาบเบญจกิตติ', icon: '🌅', tile: 92 },
+];
+let unlockedStamps = new Set();
 
-const zoneOf = n => ZONES.find(z => n <= z.to);
-const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const zoneOf = n => ZONES.find(z => n <= z.to) || ZONES[0];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// ---------- Board ----------
-const board = document.getElementById('board');
+// ==========================================
+// 3. BIG BOARD RENDERING & INTERACTION
+// ==========================================
+const boardEl = document.getElementById('board');
 const tiles = {};
-for (let row = 0; row < 10; row++) for (let col = 0; col < 10; col++) {
-  const rb = 9 - row, n = rb * 10 + (rb % 2 === 0 ? col + 1 : 10 - col);
-  const z = zoneOf(n), m = MILESTONES[n];
-  const el = document.createElement('div');
-  el.className = 'tile' + (m ? ' milestone' : '');
-  el.style.background = z.color;
-  el.tabIndex = 0;
-  el.dataset.n = n;
-  el.innerHTML = `<span class="num">${n}</span>${LADDERS[n] ? ' 🪜' : SNAKES[n] ? ' 🐍' : n === 100 ? ' 🏆' : ''}${m ? `<span class="lbl">${m[0]}</span>` : ''}`;
-  board.appendChild(el);
-  tiles[n] = el;
-}
-const svgNS = 'http://www.w3.org/2000/svg';
-const overlay = document.createElementNS(svgNS, 'svg');
-overlay.id = 'overlay';
-board.appendChild(overlay);
+for (let row = 0; row < 10; row++) {
+  for (let col = 0; col < 10; col++) {
+    const rb = 9 - row;
+    const n = rb * 10 + (rb % 2 === 0 ? col + 1 : 10 - col);
+    const z = zoneOf(n);
+    const m = MILESTONES[n];
+    const isLadder = !!LADDERS[n];
+    const isSnake = !!SNAKES[n];
 
+    const el = document.createElement('div');
+    el.className = 'tile';
+    el.style.background = z.color;
+    el.dataset.n = n;
+
+    let badge = '';
+    if (isLadder) badge = '<span class="tile-badge text-emerald-800">🪜</span>';
+    else if (isSnake) badge = '<span class="tile-badge text-rose-800">🐍</span>';
+    else if (n === 100) badge = '<span class="tile-badge text-amber-800">🏆</span>';
+
+    el.innerHTML = `
+      <div class="tile-header">
+        <span class="tile-num">${n}</span>
+        ${badge}
+      </div>
+      <div class="tile-icon">${m ? m.icon : ''}</div>
+      <div class="tile-name">${m ? m.name : ''}</div>
+    `;
+
+    // Click on tile -> open landmark info drawer
+    el.onclick = () => {
+      sfx.playPop();
+      openLandmarkInfo(n);
+    };
+
+    boardEl.appendChild(el);
+    tiles[n] = el;
+  }
+}
+
+// SVG Overlays for Ladders & Snakes
+const overlay = document.getElementById('overlay');
 function center(n) {
-  const b = board.getBoundingClientRect(), r = tiles[n].getBoundingClientRect();
+  const b = boardEl.getBoundingClientRect(), r = tiles[n].getBoundingClientRect();
   return [r.left - b.left + r.width / 2, r.top - b.top + r.height / 2];
 }
+
 function drawOverlay() {
-  let s = '';
+  if (!tiles[1]) return;
   const w = tiles[1].offsetWidth;
+  let s = '';
+
+  // Ladders: Bamboo golden rails with rung highlights
   for (const [a, [b]] of Object.entries(LADDERS)) {
     const [x1, y1] = center(a), [x2, y2] = center(b);
-    const len = Math.hypot(x2 - x1, y2 - y1), nx = -(y2 - y1) / len * w * .16, ny = (x2 - x1) / len * w * .16;
-    s += `<g stroke="#7c5a2b" stroke-width="${w*.07}" stroke-linecap="round" opacity=".85">
-      <line x1="${x1+nx}" y1="${y1+ny}" x2="${x2+nx}" y2="${y2+ny}"/><line x1="${x1-nx}" y1="${y1-ny}" x2="${x2-nx}" y2="${y2-ny}"/>`;
-    const rungs = Math.max(2, Math.floor(len / (w * .45)));
-    for (let i = 1; i < rungs; i++) { const t = i / rungs, cx = x1 + (x2 - x1) * t, cy = y1 + (y2 - y1) * t;
-      s += `<line x1="${cx+nx}" y1="${cy+ny}" x2="${cx-nx}" y2="${cy-ny}" stroke-width="${w*.05}"/>`; }
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const nx = -(y2 - y1) / len * w * 0.17;
+    const ny = (x2 - x1) / len * w * 0.17;
+
+    // Shadow
+    s += `<g stroke="rgba(0,0,0,0.22)" stroke-width="${w * 0.085}" stroke-linecap="round">
+      <line x1="${x1+nx+2}" y1="${y1+ny+3}" x2="${x2+nx+2}" y2="${y2+ny+3}"/>
+      <line x1="${x1-nx+2}" y1="${y1-ny+3}" x2="${x2-nx+2}" y2="${y2-ny+3}"/>
+    </g>`;
+    // Main Bamboo Rails
+    s += `<g stroke="#b45309" stroke-width="${w * 0.075}" stroke-linecap="round">
+      <line x1="${x1+nx}" y1="${y1+ny}" x2="${x2+nx}" y2="${y2+ny}"/>
+      <line x1="${x1-nx}" y1="${y1-ny}" x2="${x2-nx}" y2="${y2-ny}"/>`;
+    
+    // Rungs
+    const rungs = Math.max(2, Math.floor(len / (w * 0.42)));
+    for (let i = 1; i < rungs; i++) {
+      const t = i / rungs;
+      const cx = x1 + (x2 - x1) * t, cy = y1 + (y2 - y1) * t;
+      s += `<line x1="${cx+nx}" y1="${cy+ny}" x2="${cx-nx}" y2="${cy-ny}" stroke="#f59e0b" stroke-width="${w * 0.06}"/>`;
+    }
     s += '</g>';
   }
+
+  // Snakes: Playful winding green snakes with scales, cute eyes and red tongue
   for (const [a, [b]] of Object.entries(SNAKES)) {
     const [x1, y1] = center(a), [x2, y2] = center(b);
     const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-    const d = `M${x1},${y1} Q${mx + w * 1.1},${(y1 + my) / 2} ${mx},${my} T${x2},${y2}`;
-    s += `<path d="${d}" fill="none" stroke="#14532d" stroke-width="${w*.2}" stroke-linecap="round" opacity=".8"/>
-      <path d="${d}" fill="none" stroke="#84cc16" stroke-width="${w*.11}" stroke-linecap="round" stroke-dasharray="${w*.15} ${w*.12}"/>
-      <circle cx="${x1}" cy="${y1}" r="${w*.16}" fill="#14532d"/>
-      <circle cx="${x1-w*.05}" cy="${y1-w*.04}" r="${w*.03}" fill="#fef08a"/><circle cx="${x1+w*.05}" cy="${y1-w*.04}" r="${w*.03}" fill="#fef08a"/>`;
+    const d = `M${x1},${y1} Q${mx + w * 1.15},${(y1 + my) / 2} ${mx},${my} T${x2},${y2}`;
+
+    // Soft Shadow
+    s += `<path d="${d}" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="${w * 0.22}" stroke-linecap="round" transform="translate(2, 4)"/>`;
+    // Body & Scales
+    s += `<path d="${d}" fill="none" stroke="#15803d" stroke-width="${w * 0.19}" stroke-linecap="round"/>
+          <path d="${d}" fill="none" stroke="#bef264" stroke-width="${w * 0.09}" stroke-linecap="round" stroke-dasharray="${w * 0.16} ${w * 0.12}"/>
+          <!-- Head -->
+          <circle cx="${x1}" cy="${y1}" r="${w * 0.17}" fill="#166534"/>
+          <!-- Eyes -->
+          <circle cx="${x1 - w * 0.06}" cy="${y1 - w * 0.04}" r="${w * 0.045}" fill="#ffffff"/>
+          <circle cx="${x1 + w * 0.06}" cy="${y1 - w * 0.04}" r="${w * 0.045}" fill="#ffffff"/>
+          <circle cx="${x1 - w * 0.06}" cy="${y1 - w * 0.04}" r="${w * 0.025}" fill="#0f172a"/>
+          <circle cx="${x1 + w * 0.06}" cy="${y1 - w * 0.04}" r="${w * 0.025}" fill="#0f172a"/>
+          <!-- Tongue -->
+          <path d="M${x1},${y1 - w * 0.14} L${x1},${y1 - w * 0.24}" stroke="#ef4444" stroke-width="${w * 0.035}" stroke-linecap="round"/>`;
   }
   overlay.innerHTML = s;
 }
 
-// tooltips (hover, keyboard focus, tap)
-const tip = document.getElementById('tip');
-function showTip(el) {
-  const n = +el.dataset.n, z = zoneOf(n), m = MILESTONES[n];
-  const extra = LADDERS[n] ? `<p class="mt-1 text-lime-300">🪜 ${LADDERS[n][1]} → Tile ${LADDERS[n][0]}</p>` :
-                SNAKES[n] ? `<p class="mt-1 text-rose-300">🐍 ${SNAKES[n][1]} → Tile ${SNAKES[n][0]}</p>` : '';
-  tip.innerHTML = `<p class="font-semibold text-emerald-300">Tile ${n} · ${m ? m[0] : z.name}</p><p class="mt-1">${m ? m[1] : z.fact}</p>${m ? `<p class="mt-1 opacity-70">${z.name}</p>` : ''}${extra}`;
-  const r = el.getBoundingClientRect();
-  tip.style.left = Math.min(innerWidth - 270, Math.max(8, r.left)) + 'px';
-  tip.style.top = (r.top > 150 ? r.top - tip.offsetHeight - 8 : r.bottom + 8) + 'px';
-  tip.style.opacity = 1;
-}
-const hideTip = () => tip.style.opacity = 0;
-board.addEventListener('pointerover', e => { const t = e.target.closest('.tile'); if (t) showTip(t); });
-board.addEventListener('focusin', e => { const t = e.target.closest('.tile'); if (t) showTip(t); });
-board.addEventListener('pointerleave', hideTip);
-board.addEventListener('focusout', hideTip);
-addEventListener('scroll', hideTip, { passive: true });
+new ResizeObserver(() => {
+  drawOverlay();
+  if (gameState && gameState.players) {
+    gameState.players.forEach((p, i) => placePawn(i, p.pos));
+  }
+}).observe(boardEl);
 
-// ---------- Dice ----------
-const die = document.getElementById('die');
+// ==========================================
+// 4. 3D DICE SYSTEM
+// ==========================================
+const dieEl = document.getElementById('die');
 const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
-die.innerHTML = '<span></span>'.repeat(9);
-function showFace(v) { [...die.children].forEach((s, i) => s.style.visibility = PIPS[v].includes(i) ? 'visible' : 'hidden'); }
-showFace(1);
-async function animateDie(v) {
-  die.classList.remove('rolling'); void die.offsetWidth; die.classList.add('rolling');
-  for (let i = 0; i < 8; i++) { showFace(1 + Math.floor(Math.random() * 6)); await sleep(70); }
-  showFace(v);
+dieEl.innerHTML = '<span class="dice-dot"></span>'.repeat(9);
+
+function showDiceFace(v) {
+  [...dieEl.children].forEach((dot, i) => {
+    dot.style.visibility = PIPS[v].includes(i) ? 'visible' : 'hidden';
+  });
+}
+showDiceFace(1);
+
+async function animateDiceRoll(v) {
+  dieEl.classList.remove('rolling');
+  void dieEl.offsetWidth;
+  dieEl.classList.add('rolling');
+  sfx.playDice();
+
+  for (let i = 0; i < 7; i++) {
+    showDiceFace(1 + Math.floor(Math.random() * 6));
+    await sleep(60);
+  }
+  showDiceFace(v);
 }
 
-// ---------- Game ----------
-let state = null;   // { players:[{name,pos}], turn, winner }
-let busy = false;
-let room = null;    // online room: { id, code, host, ch, players:[room_players rows], seat, started, lastMove, queue }
+// ==========================================
+// 5. GAME STATE & ENGINE
+// ==========================================
+let gameState = null;
+let isBusy = false;
 const pawns = [];
-const logEl = document.getElementById('log');
-function log(msg, color) {
-  const li = document.createElement('li');
-  li.className = 'rounded-lg px-2 py-1 bg-emerald-50';
-  li.innerHTML = (color ? `<span class="inline-block w-2 h-2 rounded-full mr-1.5" style="background:${color}"></span>` : '') + msg;
-  logEl.prepend(li);
-}
+let botTimer = null;
 
 function placePawn(i, n) {
   const p = pawns[i];
-  if (n === 0) { p.style.left = (3 + i * 6) + '%'; p.style.top = '104%'; return; } // waiting below the board
-  const [x, y] = center(n), w = tiles[1].offsetWidth, off = [[-1,-1],[1,-1],[-1,1],[1,1]][i];
-  p.style.left = x + off[0] * w * .18 + 'px'; p.style.top = y + off[1] * w * .18 + 'px';
+  if (!p) return;
+  if (n === 0) {
+    p.style.left = (6 + i * 8) + '%';
+    p.style.top = '103%';
+    return;
+  }
+  const [x, y] = center(n);
+  const w = tiles[1].offsetWidth;
+  const off = [[-1, -1], [1, -1], [-1, 1], [1, 1]][i % 4];
+  p.style.left = (x + off[0] * w * 0.18) + 'px';
+  p.style.top = (y + off[1] * w * 0.18) + 'px';
 }
+
 function renderPawns() {
-  pawns.forEach(p => p.remove()); pawns.length = 0;
-  state.players.forEach((pl, i) => {
-    const p = document.createElement('div'); p.className = 'pawn'; p.style.background = COLORS[i]; p.title = pl.name;
-    board.appendChild(p); pawns.push(p); placePawn(i, pl.pos);
+  pawns.forEach(p => p.remove());
+  pawns.length = 0;
+  gameState.players.forEach((pl, i) => {
+    const p = document.createElement('div');
+    p.className = 'pawn';
+    p.style.backgroundColor = COLORS[i % COLORS.length];
+    p.textContent = pl.avatar;
+    p.title = pl.name;
+    boardEl.appendChild(p);
+    pawns.push(p);
+    placePawn(i, pl.pos);
   });
 }
-function renderPanel() {
-  const live = state.winner == null;
-  document.getElementById('players').innerHTML = state.players.map((pl, i) => `
-    <div class="flex items-center gap-2 rounded-xl px-3 py-2 ${i === state.turn && live ? 'bg-amber-100 ring-2 ring-amber-400' : 'bg-emerald-50'}">
-      <span class="w-3.5 h-3.5 rounded-full" style="background:${COLORS[i]}"></span>
-      <span class="font-semibold flex-1 truncate">${esc(pl.name)}${room && room.seat === i ? ' (you)' : ''}</span>
-      <span class="text-xs text-emerald-800">${pl.pos ? 'Tile ' + pl.pos : 'Start'}</span>
-    </div>`).join('');
-  pawns.forEach((p, i) => p.classList.toggle('active', i === state.turn && live));
-  const cur = state.players[state.turn], mine = !cur.bot && (!room || room.seat === state.turn);
-  document.getElementById('turnText').textContent = !live ? 'Game over' : mine ? `${cur.name}, your turn!` : cur.bot ? `${cur.name} is rolling…` : `Waiting for ${cur.name}…`;
-  document.getElementById('roll').disabled = busy || !live || !mine;
-  if (live && cur.bot && !busy && !botTimer) botTimer = setTimeout(() => {
-    botTimer = null;
-    if (state && state.winner == null && !busy && state.players[state.turn].bot) applyRoll(1 + Math.floor(Math.random() * 6));
-  }, 800);
+
+function showToast(text, icon = '🚶', sub = '') {
+  document.getElementById('eventIcon').textContent = icon;
+  document.getElementById('eventText').textContent = text;
+  document.getElementById('eventSub').textContent = sub;
 }
 
-let botTimer = null;
-function beginGame(names, withBot = false) {
-  state = { players: names.map((name, i) => ({ name, pos: 0, bot: withBot && i === names.length - 1 })), turn: 0, winner: null };
-  busy = false;
-  logEl.innerHTML = '';
-  document.getElementById('lobby').classList.add('hidden');
-  document.getElementById('play').classList.remove('hidden');
-  document.getElementById('win').classList.add('hidden');
-  renderPawns(); renderPanel();
-  log(`Welcome to Benjakitti Forest Park! ${names.length} walkers set off from the Main Gate.`);
+function checkPassportStamps(pos) {
+  PASSPORT_STAMPS.forEach(s => {
+    if (pos >= s.tile && !unlockedStamps.has(s.id)) {
+      unlockedStamps.add(s.id);
+      sfx.playPop();
+      showToast(`🎖️ ปลดล็อคตราประทับ: ${s.name}!`, s.icon, 'สะสมตราประทับสวนเบญจกิตติสำเร็จ');
+    }
+  });
+  document.getElementById('passportCount').textContent = `${unlockedStamps.size}/${PASSPORT_STAMPS.length}`;
 }
 
-// deterministic: every tab applies the same roll value to the same state
-async function applyRoll(v) {
-  busy = true; renderPanel();
-  const i = state.turn, pl = state.players[i], name = `<b>${esc(pl.name)}</b>`, c = COLORS[i];
-  await animateDie(v);
+function updateHUD() {
+  if (!gameState) return;
+  const live = gameState.winner == null;
+  const cur = gameState.players[gameState.turn];
+  const myTurn = isMyTurn();
+
+  // Active Zone pill
+  const z = zoneOf(cur.pos || 1);
+  document.getElementById('currentZoneName').textContent = `${z.id}. ${z.name}`;
+
+  // Active player card
+  document.getElementById('turnPlayerAvatar').textContent = cur.avatar;
+  document.getElementById('turnPlayerAvatar').style.borderColor = COLORS[gameState.turn % COLORS.length];
+  document.getElementById('turnPlayerName').textContent = cur.name;
+  document.getElementById('turnPlayerSub').textContent = cur.pos === 0 ? 'จุดสตาร์ท · ประตูรัชดาฯ' : `ช่อง ${cur.pos} · ${MILESTONES[cur.pos]?.name || z.name}`;
+
+  document.getElementById('turnLabel').textContent = !live ? 'จบเกมแล้ว' : myTurn ? 'ตาของคุณแล้ว!' : cur.bot ? `${cur.name} กำลังเดิน...` : `รอ ${cur.name} ทอย...`;
+  document.getElementById('turnStatusBadge').textContent = live ? (myTurn ? 'ทอยเต๋าได้เลย 🎲' : 'กำลังรอ...') : 'ยินดีด้วย! 🏆';
+
+  // Roll button state
+  const btnRoll = document.getElementById('btnRoll');
+  btnRoll.disabled = isBusy || !live || !myTurn;
+
+  // Active pawn bounce
+  pawns.forEach((p, i) => p.classList.toggle('active', i === gameState.turn && live));
+
+  // Player progress list
+  const progressListEl = document.getElementById('playersProgressList');
+  progressListEl.innerHTML = gameState.players.map((pl, i) => {
+    const isCurrent = i === gameState.turn && live;
+    const pct = Math.min(100, pl.pos);
+    return `
+      <div class="flex items-center gap-2 p-2 rounded-xl transition ${isCurrent ? 'bg-amber-100/90 ring-2 ring-amber-400' : 'bg-emerald-50/70'}">
+        <span class="text-xl">${pl.avatar}</span>
+        <div class="flex-1 min-w-0">
+          <div class="flex justify-between items-center text-xs font-bold mb-1">
+            <span class="truncate text-emerald-950">${pl.name}</span>
+            <span class="text-emerald-700 font-game">${pl.pos}/100</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-emerald-200 overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-300" style="width:${pct}%; background:${COLORS[i % COLORS.length]};"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Bot Turn Auto-Roll
+  if (live && cur.bot && !isBusy && !botTimer) {
+    botTimer = setTimeout(() => {
+      botTimer = null;
+      if (gameState && gameState.winner == null && !isBusy && gameState.players[gameState.turn].bot) {
+        handleRoll(1 + Math.floor(Math.random() * 6));
+      }
+    }, 900);
+  }
+}
+
+function isMyTurn() {
+  if (!gameState || gameState.winner != null) return false;
+  const cur = gameState.players[gameState.turn];
+  if (cur.bot) return false;
+  if (gameState.mode === 'bot' || gameState.mode === 'pass') return true;
+  if (gameState.mode === 'host') return gameState.turn === 0;
+  if (gameState.mode === 'guest') return gameState.turn === netSession.mySeat;
+  return false;
+}
+
+async function handleRoll(v) {
+  if (isBusy || !gameState || gameState.winner != null) return;
+  isBusy = true;
+  updateHUD();
+
+  const turnIdx = gameState.turn;
+  const pl = gameState.players[turnIdx];
+
+  // 1. Animate dice
+  await animateDiceRoll(v);
+
+  // 2. Step-by-step movement
   const target = Math.min(100, pl.pos + v);
-  for (let n = pl.pos + 1; n <= target; n++) { pl.pos = n; placePawn(i, n); await sleep(190); }
-  const z = zoneOf(target).name;
+  showToast(`${pl.name} ทอยได้ ${v} ก้าว`, '🎲', 'กำลังเดินผ่านเส้นทางสวนป่าเบญจกิตติ...');
+  for (let n = pl.pos + 1; n <= target; n++) {
+    pl.pos = n;
+    placePawn(turnIdx, n);
+    sfx.playStep();
+    await sleep(180);
+  }
+
+  checkPassportStamps(target);
+
+  // 3. Check for Ladder or Snake
   if (LADDERS[target]) {
     const [to, msg] = LADDERS[target];
-    await sleep(200); pl.pos = to; placePawn(i, to);
-    log(`${name} rolled ${v}, reached ${z} (Tile ${target}). ${msg} Climbed to Tile ${to}! 🪜`, c);
+    sfx.playLadder();
+    showToast(`🪜 ${pl.name} ${msg}`, '🪜', `พุ่งทะยานจากช่อง ${target} ไปช่อง ${to}!`);
+    await sleep(250);
+    pl.pos = to;
+    placePawn(turnIdx, to);
+    checkPassportStamps(to);
+    await sleep(350);
   } else if (SNAKES[target]) {
     const [to, msg] = SNAKES[target];
-    await sleep(200); pl.pos = to; placePawn(i, to);
-    log(`${name} rolled ${v}, landed in ${z} (Tile ${target}). ${msg} Slid down to Tile ${to}. 🐍`, c);
+    sfx.playSnake();
+    showToast(`🐍 ${pl.name} ${msg}`, '🐍', `ถอยกลับจากช่อง ${target} มาช่อง ${to}!`);
+    await sleep(250);
+    pl.pos = to;
+    placePawn(turnIdx, to);
+    await sleep(350);
   } else {
-    log(`${name} rolled ${v} and walked to Tile ${target} · ${MILESTONES[target]?.[0] || z}.`, c);
+    const m = MILESTONES[target];
+    showToast(`${pl.name} เดินถึง ${m ? m.name : zoneOf(target).name}`, m ? m.icon : '🌲', m ? m.desc : 'เส้นทางเดินเท้าชมธรรมชาติสวนป่า');
   }
-  await sleep(250);
-  if (pl.pos >= 100) { state.winner = i; win(i); }
-  else if (v === 6) log(`${name} rolled a 6 — bonus turn!`, c);
-  else state.turn = (state.turn + 1) % state.players.length;
-  busy = false; renderPanel();
+
+  // 4. Check for Winner
+  if (pl.pos >= 100) {
+    gameState.winner = turnIdx;
+    sfx.playWin();
+    showWinnerModal(pl);
+  } else if (v === 6) {
+    showToast(`🎉 ${pl.name} ทอยได้เลข 6! ได้สิทธิ์ทอยเพิ่มอีกครั้ง!`, '🎲', 'หมุนเต๋าต่อได้ทันที');
+  } else {
+    gameState.turn = (gameState.turn + 1) % gameState.players.length;
+  }
+
+  isBusy = false;
+  updateHUD();
 }
-function win(i) {
-  document.getElementById('winText').textContent = `${state.players[i].name} wins!`;
-  document.getElementById('win').classList.remove('hidden');
-  document.getElementById('again').textContent = room ? 'Back to lobby' : 'Play again';
-  log(`🏆 <b>${esc(state.players[i].name)}</b> reached the Grand Lakeside Pavilion!`, COLORS[i]);
+
+function showWinnerModal(winnerPlayer) {
+  document.getElementById('winPlayerName').textContent = `${winnerPlayer.avatar} ${winnerPlayer.name}`;
+  document.getElementById('modalWin').classList.remove('hidden');
+
   if (window.confetti) {
     const end = Date.now() + 2500;
-    (function burst() {
-      confetti({ particleCount: 6, angle: 60, spread: 70, origin: { x: 0 }, colors: COLORS });
-      confetti({ particleCount: 6, angle: 120, spread: 70, origin: { x: 1 }, colors: COLORS });
-      if (Date.now() < end) requestAnimationFrame(burst);
+    (function frame() {
+      confetti({ particleCount: 7, angle: 60, spread: 65, origin: { x: 0 }, colors: COLORS });
+      confetti({ particleCount: 7, angle: 120, spread: 65, origin: { x: 1 }, colors: COLORS });
+      if (Date.now() < end) requestAnimationFrame(frame);
     })();
   }
 }
 
-document.getElementById('roll').onclick = async () => {
-  if (busy || !state || state.winner != null) return;
-  if ((room && room.seat !== state.turn) || state.players[state.turn].bot) return;
-  if (!room) return applyRoll(1 + Math.floor(Math.random() * 6));
-  busy = true; renderPanel();
-  const { data, error } = await sb.rpc('roll_dice', { p_room: room.id }); // server rolls; result also arrives via realtime
-  if (error) { busy = false; renderPanel(); log(esc(error.message)); return; }
-  queueMove(data);
-};
-document.getElementById('again').onclick = () => {
-  if (!room) return beginGame(state.players.map(p => p.name), state.players.some(p => p.bot));
-  leaveRoom();
+// Roll button click
+document.getElementById('btnRoll').onclick = () => {
+  if (!isMyTurn() || isBusy) return;
+  const v = 1 + Math.floor(Math.random() * 6);
+  if (gameState.mode === 'host' || gameState.mode === 'guest') {
+    netSession.broadcastRoll(v);
+  }
+  handleRoll(v);
 };
 
-// ---------- Lobby: hot-seat ----------
-const namesEl = document.getElementById('names'), countEl = document.getElementById('count');
-function renderNames() {
-  const prev = [...namesEl.querySelectorAll('input')].map(i => i.value);
-  namesEl.innerHTML = Array.from({ length: +countEl.value }, (_, i) =>
-    `<div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full shrink-0" style="background:${COLORS[i]}"></span>
-     <input maxlength="14" value="${esc(prev[i] || 'Player ' + (i + 1))}" aria-label="Player ${i + 1} name" class="flex-1 min-w-0 rounded-lg border border-emerald-200 px-3 py-1.5"></div>`).join('');
+// ==========================================
+// 6. PARK GUIDE & PASSPORT MODALS
+// ==========================================
+function openLandmarkInfo(tileNum) {
+  const m = MILESTONES[tileNum];
+  const z = zoneOf(tileNum);
+  const ladder = LADDERS[tileNum];
+  const snake = SNAKES[tileNum];
+
+  let extra = '';
+  if (ladder) extra = `<div class="mt-2 p-2.5 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs">🪜 ทางลัด: ${ladder[1]} (ไปช่อง ${ladder[0]})</div>`;
+  if (snake) extra = `<div class="mt-2 p-2.5 rounded-xl bg-rose-100 text-rose-900 font-bold text-xs">🐍 อุปสรรค: ${snake[1]} (ถอยกลับช่อง ${snake[0]})</div>`;
+
+  showToast(`ช่อง ${tileNum}: ${m ? m.name : z.name}`, m ? m.icon : '🌲', m ? m.desc : z.name);
 }
-countEl.onchange = renderNames; renderNames();
-document.getElementById('startLocal').onclick = () => {
-  const names = [...namesEl.querySelectorAll('input')].map((inp, i) => inp.value.trim() || 'Player ' + (i + 1));
-  const vsBot = names.length === 1;
-  beginGame(vsBot ? [...names, 'Ranger Bot 🤖'] : names, vsBot);
+
+// Build Park Guide Landmarks List
+const guideListEl = document.getElementById('guideLandmarksList');
+guideListEl.innerHTML = Object.entries(MILESTONES).map(([tile, m]) => `
+  <div class="p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-start gap-3">
+    <span class="text-3xl p-2 rounded-xl bg-white shadow-sm">${m.icon}</span>
+    <div class="flex-1 min-w-0">
+      <div class="flex justify-between items-center">
+        <h4 class="font-game font-extrabold text-sm text-emerald-950">${m.name}</h4>
+        <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-800">ช่อง ${tile}</span>
+      </div>
+      <p class="text-xs text-emerald-800/80 mt-1">${m.desc}</p>
+    </div>
+  </div>
+`).join('');
+
+document.getElementById('btnOpenParkGuide').onclick = () => {
+  sfx.playPop();
+  document.getElementById('modalParkGuide').classList.remove('hidden');
+};
+document.getElementById('btnCloseParkGuide').onclick = () => {
+  sfx.playPop();
+  document.getElementById('modalParkGuide').classList.add('hidden');
 };
 
-document.querySelectorAll('.mode-btn').forEach(b => b.onclick = () => {
-  document.querySelectorAll('.mode-btn').forEach(x => {
-    const on = x === b;
-    x.classList.toggle('bg-emerald-600', on); x.classList.toggle('text-white', on);
-    x.classList.toggle('bg-emerald-50', !on); x.classList.toggle('text-emerald-800', !on);
+// Passport Stamps Modal
+function renderPassportModal() {
+  const grid = document.getElementById('passportStampsGrid');
+  grid.innerHTML = PASSPORT_STAMPS.map(s => {
+    const isUnlocked = unlockedStamps.has(s.id);
+    return `
+      <div class="stamp-badge p-3 rounded-2xl border ${isUnlocked ? 'unlocked bg-amber-50 border-amber-300 shadow-md' : 'locked bg-gray-50 border-gray-200'}">
+        <div class="text-3xl mb-1">${s.icon}</div>
+        <p class="font-game text-xs font-bold text-emerald-950 truncate">${s.name}</p>
+        <span class="text-[9px] font-bold text-emerald-700">ช่อง ${s.tile}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+document.getElementById('btnPassport').onclick = () => {
+  sfx.playPop();
+  renderPassportModal();
+  document.getElementById('modalPassport').classList.remove('hidden');
+};
+document.getElementById('btnClosePassport').onclick = () => {
+  sfx.playPop();
+  document.getElementById('modalPassport').classList.add('hidden');
+};
+
+// ==========================================
+// 7. KAHOOT-STYLE REALTIME NETWORKING
+// ==========================================
+const sbClient = window.supabase?.createClient(
+  'https://apwtyfekyznrgzydflco.supabase.co',
+  'sb_publishable_b_xVCXDzVKfhxfGqPYotrg_8HZFgakQ'
+);
+
+class NetworkSession {
+  constructor() {
+    this.pin = '';
+    this.isHost = false;
+    this.myName = '';
+    this.myAvatar = '🦊';
+    this.myId = '';
+    this.mySeat = 0;
+    this.players = [];
+    this.sbChannel = null;
+    this.bc = null;
+    this.ready = false;
+    this.joinRetryTimer = null;
+    this.processedMsgIds = new Set();
+  }
+
+  init(pin, isHost, name, avatar, onReadyCallback) {
+    this.leave();
+    this.pin = pin;
+    this.isHost = isHost;
+    this.myName = name;
+    this.myAvatar = avatar;
+    this.players = [];
+    this.ready = false;
+
+    // 1. Local BroadcastChannel for instant same-browser multi-tab sync
+    try {
+      this.bc = new BroadcastChannel('benjakitti_pin_' + pin);
+      this.bc.onmessage = e => this.onMessage(e.data);
+    } catch(e) {}
+
+    // 2. Supabase Realtime WebSocket for cross-device online sync
+    if (sbClient) {
+      try {
+        this.sbChannel = sbClient.channel('pin_' + pin, {
+          config: { broadcast: { ack: false, self: false } }
+        });
+        this.sbChannel.on('broadcast', { event: 'msg' }, payload => {
+          if (payload && payload.payload) this.onMessage(payload.payload);
+        });
+        this.sbChannel.subscribe(status => {
+          if (status === 'SUBSCRIBED') {
+            this.ready = true;
+            if (onReadyCallback) onReadyCallback();
+          }
+        });
+      } catch(e) {}
+    } else {
+      this.ready = true;
+      if (onReadyCallback) onReadyCallback();
+    }
+  }
+
+  send(data) {
+    if (!data.msgId) {
+      data.msgId = Math.random().toString(36).slice(2) + '_' + Date.now();
+    }
+    this.processedMsgIds.add(data.msgId);
+    setTimeout(() => this.processedMsgIds.delete(data.msgId), 15000);
+
+    if (this.bc) {
+      try { this.bc.postMessage(data); } catch(e) {}
+    }
+    if (this.sbChannel) {
+      try { this.sbChannel.send({ type: 'broadcast', event: 'msg', payload: data }); } catch(e) {}
+    }
+  }
+
+  onMessage(data) {
+    if (!data || !data.type || !data.msgId) return;
+
+    // Prevent duplicate processing from dual channels (BroadcastChannel + Supabase WS)
+    if (this.processedMsgIds.has(data.msgId)) return;
+    this.processedMsgIds.add(data.msgId);
+    setTimeout(() => this.processedMsgIds.delete(data.msgId), 15000);
+
+    if (this.isHost) {
+      if (data.type === 'JOIN') {
+        if (this.players.length < 4 && !this.players.some(p => p.id === data.id)) {
+          this.players.push({
+            id: data.id,
+            name: data.name,
+            avatar: data.avatar,
+            seat: this.players.length
+          });
+          sfx.playPop();
+          renderHostLobbyPlayers();
+          this.broadcastRoster();
+        } else if (this.players.some(p => p.id === data.id)) {
+          // Re-send roster in case guest missed it
+          this.broadcastRoster();
+        }
+      }
+    } else {
+      if (data.type === 'ROSTER') {
+        this.players = data.players;
+        if (this.joinRetryTimer) {
+          clearInterval(this.joinRetryTimer);
+          this.joinRetryTimer = null;
+        }
+        const myIdx = this.players.findIndex(p => p.id === this.myId);
+        if (myIdx >= 0) this.mySeat = myIdx;
+      } else if (data.type === 'START') {
+        if (this.joinRetryTimer) {
+          clearInterval(this.joinRetryTimer);
+          this.joinRetryTimer = null;
+        }
+        const myIdx = data.players.findIndex(p => p.id === this.myId);
+        if (myIdx >= 0) this.mySeat = myIdx;
+        startMultiplayerGame(data.players, 'guest');
+      }
+    }
+
+    if (data.type === 'ROLL' && gameState && gameState.winner == null) {
+      if (gameState.turn !== data.turn) {
+        gameState.turn = data.turn;
+      }
+      handleRoll(data.roll);
+    }
+  }
+
+  startGuestJoinRetry(myId, name, avatar) {
+    this.myId = myId;
+    const sendJoin = () => {
+      if (this.players.length === 0) {
+        this.send({ type: 'JOIN', id: myId, name, avatar });
+      }
+    };
+    sendJoin();
+    if (this.joinRetryTimer) clearInterval(this.joinRetryTimer);
+    this.joinRetryTimer = setInterval(sendJoin, 1200);
+  }
+
+  broadcastRoster() {
+    this.send({ type: 'ROSTER', players: this.players });
+  }
+
+  broadcastStart() {
+    this.send({ type: 'START', players: this.players });
+  }
+
+  broadcastRoll(v) {
+    this.send({ type: 'ROLL', roll: v, turn: gameState.turn });
+  }
+
+  leave() {
+    if (this.joinRetryTimer) { clearInterval(this.joinRetryTimer); this.joinRetryTimer = null; }
+    if (this.bc) { try { this.bc.close(); } catch(e) {} this.bc = null; }
+    if (this.sbChannel && sbClient) { try { sbClient.removeChannel(this.sbChannel); } catch(e) {} this.sbChannel = null; }
+    this.ready = false;
+  }
+}
+
+const netSession = new NetworkSession();
+
+// ==========================================
+// 8. SCREEN FLOW & NAVIGATION
+// ==========================================
+const screenHome = document.getElementById('screenHome');
+const screenMode = document.getElementById('screenMode');
+const screenMulti = document.getElementById('screenMultiplayer');
+const screenGame = document.getElementById('screenGame');
+
+function showScreen(name) {
+  screenHome.classList.toggle('hidden', name !== 'home');
+  screenMode.classList.toggle('hidden', name !== 'mode');
+  screenMulti.classList.toggle('hidden', name !== 'multi');
+  screenGame.classList.toggle('hidden', name !== 'game');
+  document.getElementById('modalWin').classList.add('hidden');
+}
+
+// Screen 1: Play -> Screen 2: Mode
+document.getElementById('btnPlay').onclick = () => {
+  sfx.playPop();
+  showScreen('mode');
+};
+
+document.getElementById('btnBackToHome').onclick = () => {
+  sfx.playPop();
+  showScreen('home');
+};
+
+document.getElementById('btnModeBot').onclick = () => {
+  sfx.playPop();
+  document.getElementById('modalBotSetup').classList.remove('hidden');
+};
+
+document.getElementById('btnCloseBotModal').onclick = () => {
+  sfx.playPop();
+  document.getElementById('modalBotSetup').classList.add('hidden');
+};
+
+document.getElementById('btnModeMulti').onclick = () => {
+  sfx.playPop();
+  showScreen('multi');
+  selectMultiTab('join');
+};
+
+document.getElementById('btnBackToMode').onclick = () => {
+  sfx.playPop();
+  netSession.leave();
+  showScreen('mode');
+};
+
+// Avatar Pickers
+function buildAvatarPicker(containerId, initialIdx = 0) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = AVATARS.map((av, idx) => `
+    <button type="button" data-idx="${idx}" class="avatar-opt w-10 h-10 rounded-2xl flex items-center justify-center text-xl transition ${idx === initialIdx ? 'bg-emerald-500 text-white scale-110 shadow-md ring-2 ring-emerald-300' : 'bg-white hover:bg-emerald-100'}">
+      ${av}
+    </button>
+  `).join('');
+
+  container.querySelectorAll('.avatar-opt').forEach(btn => {
+    btn.onclick = () => {
+      sfx.playPop();
+      container.querySelectorAll('.avatar-opt').forEach(b => {
+        b.className = 'avatar-opt w-10 h-10 rounded-2xl flex items-center justify-center text-xl transition bg-white hover:bg-emerald-100';
+      });
+      btn.className = 'avatar-opt w-10 h-10 rounded-2xl flex items-center justify-center text-xl transition bg-emerald-500 text-white scale-110 shadow-md ring-2 ring-emerald-300';
+    };
   });
-  document.getElementById('localForm').classList.toggle('hidden', b.dataset.mode !== 'local');
-  document.getElementById('roomForm').classList.toggle('hidden', b.dataset.mode !== 'room');
+}
+
+function getSelectedAvatar(containerId) {
+  const active = document.querySelector(`#${containerId} .avatar-opt.bg-emerald-500`);
+  return active ? AVATARS[+active.dataset.idx] : AVATARS[0];
+}
+
+buildAvatarPicker('botAvatarList', 0);
+buildAvatarPicker('joinAvatarList', 1);
+buildAvatarPicker('hostAvatarList', 0);
+
+// Bot Setup: Bot Count selection
+let selectedBotCount = 1;
+document.querySelectorAll('.bot-count-btn').forEach(btn => {
+  btn.onclick = () => {
+    sfx.playPop();
+    document.querySelectorAll('.bot-count-btn').forEach(b => {
+      b.className = 'bot-count-btn py-2 rounded-xl border-2 border-emerald-200 font-bold text-sm bg-white text-emerald-900';
+    });
+    btn.className = 'bot-count-btn py-2 rounded-xl border-2 border-emerald-300 font-bold text-sm bg-emerald-500 text-white';
+    selectedBotCount = +btn.dataset.bots;
+  };
 });
 
-// ---------- Lobby: online room (Supabase) ----------
-// Publishable key is meant for browsers: RLS + the SQL functions in supabase/schema.sql guard the data.
-// Never put the secret key in this file.
-const sb = window.supabase?.createClient('https://apwtyfekyznrgzydflco.supabase.co', 'sb_publishable_b_xVCXDzVKfhxfGqPYotrg_8HZFgakQ');
-const $ = id => document.getElementById(id);
-const statusEl = $('roomStatus');
-const pageUrl = () => location.href.split('#')[0];
-let me = null; // { id, username }
+document.getElementById('btnStartBotGame').onclick = () => {
+  sfx.playPop();
+  const myName = document.getElementById('botPlayerName').value.trim() || 'นักวิ่งสายชิล';
+  const myAvatar = getSelectedAvatar('botAvatarList');
 
-async function refreshAuth() {
-  const { data: { session } } = await sb.auth.getSession();
-  $('authBox').classList.toggle('hidden', !!session);
-  $('roomBox').classList.toggle('hidden', !session);
-  if (!session) { me = null; return; }
-  const [{ data: prof }, { data: st }] = await Promise.all([
-    sb.from('profiles').select('username').eq('id', session.user.id).maybeSingle(),
-    sb.from('player_stats').select('*').eq('user_id', session.user.id).maybeSingle(),
-  ]);
-  me = { id: session.user.id, username: prof?.username || 'Walker' };
-  $('meName').textContent = me.username;
-  $('meStats').textContent = st ? `${st.games_played} games · ${st.wins} wins · ${st.win_rate_percent}% win rate` : '';
-}
-if (sb) sb.auth.onAuthStateChange(() => setTimeout(refreshAuth)); // setTimeout: don't call supabase inside the auth callback
-else statusEl.textContent = 'Could not load Supabase. Online play is unavailable; use hot-seat.';
+  // Real Benjakitti Wildlife Bots!
+  const botProfiles = [
+    { name: 'บอทกระรอกสวน 🐿️', avatar: '🐿️' },
+    { name: 'บอทนกกระเต็น 🦜', avatar: '🦜' },
+    { name: 'บอทน้องเหี้ยเจ้าถิ่น 🦎', avatar: '🦎' }
+  ];
+  const players = [{ name: myName, avatar: myAvatar, pos: 0, bot: false }];
+  for (let i = 0; i < selectedBotCount; i++) {
+    players.push({ name: botProfiles[i].name, avatar: botProfiles[i].avatar, pos: 0, bot: true });
+  }
 
-function needsHttp() {
-  if (location.protocol !== 'file:') return false;
-  statusEl.textContent = 'Login needs the page served over http, e.g. run "npx serve ." and open http://localhost:3000/benjakitti-snakes-ladders.html';
-  return true;
-}
-$('googleBtn').onclick = async () => {
-  if (needsHttp()) return;
-  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: pageUrl() } });
-  if (error) statusEl.textContent = error.message;
+  document.getElementById('modalBotSetup').classList.add('hidden');
+  initGameSession(players, 'bot');
 };
-$('emailBtn').onclick = async () => {
-  if (needsHttp()) return;
-  const email = $('email').value.trim();
-  if (!email) { statusEl.textContent = 'Enter your email.'; return; }
-  $('emailBtn').disabled = true;
-  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: pageUrl() } });
-  $('emailBtn').disabled = false;
-  statusEl.textContent = error ? error.message : 'Check your email for the sign-in link.';
+
+// ==========================================
+// 9. MULTIPLAYER KAHOOT PIN
+// ==========================================
+const tabJoin = document.getElementById('tabJoin');
+const tabHost = document.getElementById('tabHost');
+const tabPass = document.getElementById('tabPass');
+const panelJoin = document.getElementById('panelJoin');
+const panelHost = document.getElementById('panelHost');
+const panelPass = document.getElementById('panelPass');
+const panelGuestWaiting = document.getElementById('panelGuestWaiting');
+
+function selectMultiTab(tab) {
+  tabJoin.className = `flex-1 py-2.5 rounded-xl transition font-bold ${tab === 'join' ? 'bg-white text-emerald-900 shadow-sm' : 'text-emerald-800/80 hover:text-emerald-950'}`;
+  tabHost.className = `flex-1 py-2.5 rounded-xl transition font-bold ${tab === 'host' ? 'bg-white text-emerald-900 shadow-sm' : 'text-emerald-800/80 hover:text-emerald-950'}`;
+  tabPass.className = `flex-1 py-2.5 rounded-xl transition font-bold ${tab === 'pass' ? 'bg-white text-emerald-900 shadow-sm' : 'text-emerald-800/80 hover:text-emerald-950'}`;
+
+  panelJoin.classList.toggle('hidden', tab !== 'join');
+  panelHost.classList.toggle('hidden', tab !== 'host');
+  panelPass.classList.toggle('hidden', tab !== 'pass');
+  panelGuestWaiting.classList.add('hidden');
+}
+
+tabJoin.onclick = () => { sfx.playPop(); selectMultiTab('join'); };
+tabHost.onclick = () => { sfx.playPop(); selectMultiTab('host'); };
+tabPass.onclick = () => { sfx.playPop(); selectMultiTab('pass'); };
+
+document.getElementById('btnCreateHostRoom').onclick = () => {
+  sfx.playPop();
+  const hostName = document.getElementById('inputHostName').value.trim() || 'หัวหน้าทัวร์';
+  const hostAvatar = getSelectedAvatar('hostAvatarList');
+
+  const pin = Math.floor(100000 + Math.random() * 900000).toString();
+  document.getElementById('displayHostPin').textContent = `${pin.slice(0,3)} ${pin.slice(3)}`;
+
+  netSession.init(pin, true, hostName, hostAvatar);
+  netSession.players = [{
+    id: 'host_' + Math.random().toString(36).slice(2, 7),
+    name: hostName,
+    avatar: hostAvatar,
+    seat: 0
+  }];
+
+  document.getElementById('hostSetupView').classList.add('hidden');
+  document.getElementById('hostLobbyView').classList.remove('hidden');
+  renderHostLobbyPlayers();
 };
-$('signOut').onclick = async () => { leaveRoom(); await sb.auth.signOut(); };
 
-const nameOf = p => p.profiles?.username || 'Walker';
-async function loadPlayers() {
-  const { data, error } = await sb.from('room_players')
-    .select('user_id, seat, position, profiles(username)').eq('room_id', room.id).order('seat');
-  if (error) throw error;
-  room.players = data;
-  room.seat = data.findIndex(p => p.user_id === me.id);
-}
-function renderSeats() {
-  $('seats').innerHTML = [0, 1, 2, 3].map(i => {
-    const p = room.players[i];
-    return `<li class="flex items-center gap-2 rounded-lg px-2 py-1 bg-emerald-50"><span class="w-3 h-3 rounded-full" style="background:${COLORS[i]}"></span>
-      ${p ? esc(nameOf(p)) + (p.user_id === me.id ? ' (you)' : '') + (i === 0 ? ' · host' : '') : `<span class="opacity-50">${COLOR_NAMES[i]} seat open</span>`}</li>`;
-  }).join('');
-  const btn = $('startRoom');
-  btn.classList.toggle('hidden', !room.host);
-  btn.disabled = room.players.length < 2;
-  btn.classList.toggle('opacity-40', btn.disabled);
+function renderHostLobbyPlayers() {
+  const listEl = document.getElementById('lobbyPlayersList');
+  const countBadge = document.getElementById('playerCountBadge');
+  const btnStart = document.getElementById('btnHostStartGame');
+  const minWarning = document.getElementById('hostMinWarning');
+
+  countBadge.textContent = `${netSession.players.length}/4`;
+  listEl.innerHTML = netSession.players.map((p, i) => `
+    <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white border border-emerald-100 shadow-sm">
+      <span class="text-2xl">${p.avatar}</span>
+      <span class="font-bold text-sm text-emerald-950 flex-1 truncate">${p.name}</span>
+      <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${i === 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
+        ${i === 0 ? '👑 Host' : 'ผู้เล่น'}
+      </span>
+    </div>
+  `).join('');
+
+  const canStart = netSession.players.length >= 2;
+  btnStart.disabled = !canStart;
+  minWarning.classList.toggle('hidden', canStart);
 }
 
-// moves and game start run through one queue so animations never overlap or interleave
-const enqueue = fn => { const r = room; r.queue = r.queue.then(() => r === room && fn()).catch(e => log(esc(e.message))); };
-function queueMove(m) {
-  enqueue(async () => {
-    if (!room.started || m.id <= room.lastMove) return; // dedupe: RPC result + realtime echo
-    room.lastMove = m.id;
-    const i = room.players.findIndex(p => p.user_id === m.user_id);
-    if (i < 0) return;
-    state.turn = i; state.players[i].pos = m.from_pos; // server is the source of truth
-    placePawn(i, m.from_pos);
-    await applyRoll(m.roll);
+document.getElementById('btnHostStartGame').onclick = () => {
+  sfx.playPop();
+  netSession.broadcastStart();
+  startMultiplayerGame(netSession.players, 'host');
+};
+
+document.getElementById('btnCopyPin').onclick = () => {
+  sfx.playPop();
+  navigator.clipboard.writeText(netSession.pin);
+  showToast('คัดลอก Game PIN แล้ว! ส่งให้เพื่อนเข้าเล่นได้เลย', '📋');
+};
+
+document.getElementById('btnJoinRoom').onclick = () => {
+  sfx.playPop();
+  const pin = document.getElementById('inputJoinPin').value.trim().replace(/\s+/g, '');
+  const name = document.getElementById('inputJoinName').value.trim() || 'เพื่อนร่วมทาง';
+  const avatar = getSelectedAvatar('joinAvatarList');
+  const statusMsg = document.getElementById('joinStatusMsg');
+
+  if (pin.length < 6) {
+    statusMsg.textContent = 'กรุณาใส่รหัส Game PIN 6 หลักให้ครบถ้วน';
+    return;
+  }
+  statusMsg.textContent = '';
+
+  const myId = 'guest_' + Math.random().toString(36).slice(2, 7);
+  netSession.init(pin, false, name, avatar, () => {
+    netSession.startGuestJoinRetry(myId, name, avatar);
   });
-}
-async function startFromDb(r) {
-  if (room.started) return;
-  // last move id first, then positions: a move landing in between is replayed from its from_pos, so nothing is lost
-  const { data: last } = await sb.from('moves').select('id').eq('room_id', r.id).order('id', { ascending: false }).limit(1);
-  await loadPlayers();
-  room.lastMove = last?.[0]?.id || 0;
-  room.started = true;
-  beginGame(room.players.map(nameOf));
-  state.players.forEach((pl, i) => { pl.pos = room.players[i].position; placePawn(i, pl.pos); });
-  state.turn = Math.max(0, room.players.findIndex(p => p.seat === r.current_seat));
-  if (r.status === 'finished') state.winner = room.players.findIndex(p => p.user_id === r.winner_id);
-  renderPanel();
-}
+  netSession.startGuestJoinRetry(myId, name, avatar);
 
-async function enterRoom(r) {
-  leaveRoom();
-  const mine = room = { id: r.id, code: r.code, host: r.host_id === me.id, players: [], seat: -1, started: false, lastMove: 0, queue: Promise.resolve() };
-  mine.ch = sb.channel('room-' + r.id)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'room_players', filter: `room_id=eq.${r.id}` },
-      () => mine === room && !room.started && loadPlayers().then(renderSeats))
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${r.id}` },
-      ({ new: nr }) => mine === room && nr.status !== 'lobby' && enqueue(() => startFromDb(nr)))
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'moves', filter: `room_id=eq.${r.id}` },
-      ({ new: m }) => mine === room && queueMove(m));
-  statusEl.textContent = 'Connecting…';
-  await new Promise(res => mine.ch.subscribe(s => {
-    if (s === 'SUBSCRIBED') res();
-    else if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT') { statusEl.textContent = 'Live updates unavailable (' + s + '). Refresh to retry.'; res(); }
+  panelJoin.classList.add('hidden');
+  panelGuestWaiting.classList.remove('hidden');
+  document.getElementById('guestDisplayPin').textContent = `${pin.slice(0,3)} ${pin.slice(3)}`;
+  document.getElementById('guestMyAvatar').textContent = avatar;
+  document.getElementById('guestMyName').textContent = name;
+};
+
+document.getElementById('btnLeaveLobby').onclick = () => {
+  sfx.playPop();
+  netSession.leave();
+  panelGuestWaiting.classList.add('hidden');
+  panelJoin.classList.remove('hidden');
+};
+
+// Pass & Play Setup
+let passCount = 2;
+const passInputsEl = document.getElementById('passPlayersInputs');
+
+function renderPassInputs() {
+  passInputsEl.innerHTML = Array.from({ length: passCount }, (_, i) => `
+    <div class="flex items-center gap-2 bg-white p-2 rounded-2xl border border-emerald-200">
+      <span class="text-2xl">${AVATARS[i % AVATARS.length]}</span>
+      <input type="text" maxlength="12" value="ผู้เล่น ${i + 1}" class="pass-name-input flex-1 px-3 py-1 font-bold outline-none text-sm text-emerald-950">
+    </div>
+  `).join('');
+}
+renderPassInputs();
+
+document.querySelectorAll('.pass-count-btn').forEach(btn => {
+  btn.onclick = () => {
+    sfx.playPop();
+    document.querySelectorAll('.pass-count-btn').forEach(b => {
+      b.className = 'pass-count-btn py-2 rounded-xl border-2 border-emerald-200 font-bold text-sm bg-white text-emerald-900';
+    });
+    btn.className = 'pass-count-btn py-2 rounded-xl border-2 border-emerald-300 font-bold text-sm bg-emerald-500 text-white';
+    passCount = +btn.dataset.count;
+    renderPassInputs();
+  };
+});
+
+document.getElementById('btnStartPassPlay').onclick = () => {
+  sfx.playPop();
+  const names = [...passInputsEl.querySelectorAll('.pass-name-input')].map((inp, i) => inp.value.trim() || `ผู้เล่น ${i + 1}`);
+  const players = names.map((name, i) => ({
+    name,
+    avatar: AVATARS[i % AVATARS.length],
+    pos: 0,
+    bot: false
   }));
-  if (mine !== room) return;
-  await loadPlayers();
-  const { data: fresh, error } = await sb.from('rooms').select('*').eq('id', r.id).single();
-  if (error) { statusEl.textContent = error.message; return; }
-  if (fresh.status === 'lobby') {
-    statusEl.textContent = `Room ${r.code}. Share this code; friends join from any device.`;
-    renderSeats();
-  } else enqueue(() => startFromDb(fresh));
-}
-function leaveRoom() {
-  if (room?.ch) sb.removeChannel(room.ch);
-  room = null; state = null;
-  $('seats').innerHTML = ''; $('startRoom').classList.add('hidden'); statusEl.textContent = '';
-  $('win').classList.add('hidden'); $('play').classList.add('hidden'); $('lobby').classList.remove('hidden');
-  pawns.forEach(p => p.remove()); pawns.length = 0;
-  if (me) refreshAuth(); // stats may have changed
-}
-
-async function callRoom(fn, args) {
-  statusEl.textContent = '…';
-  const { data, error } = await sb.rpc(fn, args);
-  if (error) { statusEl.textContent = error.message; return null; }
-  return data;
-}
-$('createRoom').onclick = async () => { const r = await callRoom('create_room'); if (r) enterRoom(r); };
-$('joinRoom').onclick = async () => {
-  const code = $('roomCode').value.trim().toUpperCase();
-  if (!/^[A-Z0-9]{6}$/.test(code)) { statusEl.textContent = 'Room codes are 6 letters/numbers.'; return; }
-  const r = await callRoom('join_room', { p_code: code });
-  if (r) enterRoom(r);
-};
-$('startRoom').onclick = async () => {
-  const r = await callRoom('start_game', { p_room: room.id });
-  if (r) enqueue(() => startFromDb(r)); // realtime also delivers this; startFromDb ignores the repeat
+  initGameSession(players, 'pass');
 };
 
-new ResizeObserver(() => { drawOverlay(); state && state.players.forEach((p, i) => placePawn(i, p.pos)); }).observe(board);
-log('Choose hot-seat or online to begin.');
+function startMultiplayerGame(rosterPlayers, role) {
+  const players = rosterPlayers.map(p => ({
+    name: p.name,
+    avatar: p.avatar,
+    pos: 0,
+    bot: false,
+    id: p.id
+  }));
+  initGameSession(players, role);
+}
+
+function initGameSession(playersList, mode) {
+  gameState = {
+    mode,
+    players: playersList,
+    turn: 0,
+    winner: null
+  };
+  isBusy = false;
+  unlockedStamps.clear();
+  document.getElementById('passportCount').textContent = `0/${PASSPORT_STAMPS.length}`;
+
+  const pinBadge = document.getElementById('gameRoomPinBadge');
+  if (mode === 'host' || mode === 'guest') {
+    pinBadge.classList.remove('hidden');
+    pinBadge.classList.add('inline-flex');
+    document.getElementById('gamePinText').textContent = netSession.pin;
+    pinBadge.onclick = () => {
+      navigator.clipboard.writeText(netSession.pin);
+      showToast(`คัดลอก PIN ${netSession.pin} แล้ว!`, '📋');
+    };
+  } else {
+    pinBadge.classList.add('hidden');
+  }
+
+  showScreen('game');
+  renderPawns();
+  updateHUD();
+  drawOverlay();
+  showToast('เกมเริ่มแล้ว! เดินชมสวนป่าเบญจกิตติสู่เส้นชัย 🏆', '🌿', 'ออกเดินทางจากประตูรัชดาฯ');
+}
+
+// In-Game Top Nav Buttons
+document.getElementById('btnGameHome').onclick = () => {
+  sfx.playPop();
+  if (confirm('คุณต้องการออกจากเกมเพื่อกลับหน้าแรกหรือไม่?')) {
+    netSession.leave();
+    showScreen('home');
+  }
+};
+
+document.getElementById('btnRestartGame').onclick = () => {
+  sfx.playPop();
+  if (gameState) {
+    gameState.players.forEach(p => p.pos = 0);
+    gameState.turn = 0;
+    gameState.winner = null;
+    isBusy = false;
+    unlockedStamps.clear();
+    document.getElementById('passportCount').textContent = `0/${PASSPORT_STAMPS.length}`;
+    renderPawns();
+    updateHUD();
+    document.getElementById('modalWin').classList.add('hidden');
+    showToast('รีเซ็ตเกมใหม่แล้ว! ออกตัวจากจุดสตาร์ท', '↺', 'ประตูรัชดาภิเษก');
+  }
+};
+
+document.getElementById('btnWinPlayAgain').onclick = () => {
+  sfx.playPop();
+  document.getElementById('modalWin').classList.add('hidden');
+  if (gameState) {
+    gameState.players.forEach(p => p.pos = 0);
+    gameState.turn = 0;
+    gameState.winner = null;
+    isBusy = false;
+    renderPawns();
+    updateHUD();
+  }
+};
+
+document.getElementById('btnWinHome').onclick = () => {
+  sfx.playPop();
+  netSession.leave();
+  showScreen('home');
+};
 </script>
 </body>
 </html>
