@@ -1254,6 +1254,7 @@ async function handleRoll(v) {
 function showWinnerModal(winnerPlayer) {
   document.getElementById('winPlayerName').textContent = `${winnerPlayer.avatar} ${winnerPlayer.name}`;
   document.getElementById('modalWin').classList.remove('hidden');
+  updateWinButton();
 
   if (window.confetti) {
     const end = Date.now() + 2500;
@@ -1440,6 +1441,9 @@ class NetworkSession {
           // Re-send roster in case guest missed it
           this.broadcastRoster();
         }
+      } else if (data.type === 'READY' && gameState && gameState.winner != null) {
+        readyIds.add(data.id);
+        updateWinButton();
       }
     } else {
       if (data.type === 'ROSTER') {
@@ -1815,6 +1819,7 @@ function initGameSession(playersList, mode) {
     winner: null
   };
   isBusy = false;
+  readyIds.clear();
   unlockedStamps.clear();
   document.getElementById('passportCount').textContent = `0/${PASSPORT_STAMPS.length}`;
 
@@ -1848,8 +1853,30 @@ document.getElementById('btnGameHome').onclick = () => {
   }
 };
 
+// Post-game ready check: guests mark ready, host restarts once every guest is ready
+let readyIds = new Set();
+
+function updateWinButton() {
+  const btn = document.getElementById('btnWinPlayAgain');
+  const mode = gameState?.mode;
+  if (mode === 'host') {
+    const need = gameState.players.length - 1;
+    btn.disabled = readyIds.size < need;
+    btn.textContent = btn.disabled ? `รอผู้เล่นพร้อม (${readyIds.size}/${need}) ⏳` : 'ทุกคนพร้อม! เล่นใหม่ ↺';
+  } else if (mode === 'guest') {
+    const ready = readyIds.has(netSession.myId);
+    btn.disabled = ready;
+    btn.textContent = ready ? 'พร้อมแล้ว! รอ Host เริ่มเกม... ⏳' : 'พร้อมเล่นต่อ ✋';
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'เล่นใหม่อีกครั้ง ↺';
+  }
+  btn.classList.toggle('opacity-50', btn.disabled);
+}
+
 function resetGame() {
   if (!gameState) return;
+  readyIds.clear();
   gameState.players.forEach(p => p.pos = 0);
   gameState.turn = 0;
   gameState.winner = null;
@@ -1869,7 +1896,13 @@ function restartAndSync() {
 }
 
 document.getElementById('btnRestartGame').onclick = restartAndSync;
-document.getElementById('btnWinPlayAgain').onclick = restartAndSync;
+document.getElementById('btnWinPlayAgain').onclick = () => {
+  if (gameState?.mode !== 'guest') return restartAndSync();
+  sfx.playPop();
+  readyIds.add(netSession.myId);
+  netSession.send({ type: 'READY', id: netSession.myId });
+  updateWinButton();
+};
 
 document.getElementById('btnWinHome').onclick = () => {
   sfx.playPop();
