@@ -1541,6 +1541,10 @@ document.getElementById('btnCloseBotModal').onclick = () => {
 
 document.getElementById('btnModeMulti').onclick = () => {
   sfx.playPop();
+  // Fresh entry: drop any old room and show the create form again, not the stale lobby
+  netSession.leave();
+  document.getElementById('hostSetupView').classList.remove('hidden');
+  document.getElementById('hostLobbyView').classList.add('hidden');
   showScreen('multi');
   selectMultiTab('join');
 };
