@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benjakitti Snakes & Ladders</title>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { font-family: Inter, system-ui, sans-serif; background: radial-gradient(1200px 600px at 20% -10%, #d9f99d55, transparent), linear-gradient(160deg, #ecfdf5, #f0fdfa 60%, #ecfccb); }
+  .display { font-family: Fraunces, Georgia, serif; }
+  #board { aspect-ratio: 1; display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; position: relative; }
+  .tile { position: relative; border-radius: 8px; font-size: clamp(8px, 1.4vw, 12px); padding: 2px 4px; cursor: help; overflow: hidden;
+          box-shadow: inset 0 -2px 0 #0001; transition: transform .15s; }
+  .tile:hover { transform: scale(1.06); z-index: 5; box-shadow: 0 6px 14px #0002; }
+  .tile .num { font-weight: 600; opacity: .75; }
+  .tile .lbl { position: absolute; bottom: 2px; left: 3px; right: 3px; font-size: clamp(6px, .9vw, 9px); line-height: 1.05; font-weight: 600; color: #064e3b; }
+  .tile.milestone { outline: 2px solid #ffffffcc; outline-offset: -3px; }
+  #overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+  .pawn { position: absolute; width: 5.2%; aspect-ratio: 1; border-radius: 50%; z-index: 6; border: 3px solid #fff;
+          box-shadow: 0 4px 10px #0004; transition: left .17s ease, top .17s ease; transform: translate(-50%, -50%); }
+  .pawn.active { animation: bob 1s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translate(-50%, -65%); } }
+  #tip { position: fixed; z-index: 50; max-width: 260px; pointer-events: none; opacity: 0; transition: opacity .12s; }
+  .die { width: 72px; height: 72px; border-radius: 16px; background: #fff; display: grid; grid-template: repeat(3,1fr)/repeat(3,1fr); padding: 10px;
+         box-shadow: 0 8px 20px #06402b33, inset 0 -4px 0 #0001; flex-shrink: 0; }
+  .die span { width: 12px; height: 12px; border-radius: 50%; background: #065f46; place-self: center; visibility: hidden; }
+  .die.rolling { animation: tumble .6s ease-out; }
+  @keyframes tumble { 0%{transform:rotate(0) scale(1)} 30%{transform:rotate(200deg) scale(1.15)} 70%{transform:rotate(330deg) scale(.95)} 100%{transform:rotate(360deg) scale(1)} }
+  #log li { animation: slidein .3s ease; }
+  @keyframes slidein { from { opacity: 0; transform: translateY(-6px); } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body class="min-h-screen text-emerald-950">
+<header class="max-w-7xl mx-auto px-4 pt-6 pb-3 flex flex-wrap items-end justify-between gap-2">
+  <div>
+    <p class="text-xs uppercase tracking-[.2em] text-emerald-700 font-semibold">Bangkok · Khlong Toei</p>
+    <h1 class="display text-3xl sm:text-4xl font-extrabold">Benjakitti Snakes &amp; Ladders</h1>
+  </div>
+  <p class="text-sm text-emerald-800/80 max-w-md">Race from the Dog Park gate to the Grand Lakeside Pavilion. Hover or tap any tile for a park fact.</p>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 pb-10 grid lg:grid-cols-[minmax(0,1fr)_360px] gap-5">
+  <section class="bg-white/60 backdrop-blur rounded-3xl p-2 sm:p-4 pb-8 sm:pb-10 shadow-xl shadow-emerald-900/10 ring-1 ring-emerald-900/5">
+    <div id="board"></div>
+  </section>
+
+  <aside class="flex flex-col gap-4">
+    <div id="lobby" class="bg-white rounded-3xl p-5 shadow-lg ring-1 ring-emerald-900/5">
+      <h2 class="display text-xl font-bold mb-3">Start a game</h2>
+      <div class="flex gap-2 mb-4">
+        <button data-mode="local" class="mode-btn flex-1 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white">Hot-seat</button>
+        <button data-mode="room" class="mode-btn flex-1 py-2 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-800">Room</button>
+      </div>
+      <div id="localForm">
+        <label class="text-sm font-medium">Players
+          <select id="count" class="ml-2 rounded-lg border-emerald-200 border px-2 py-1">
+            <option>2</option><option>3</option><option>4</option>
+          </select>
+        </label>
+        <div id="names" class="grid gap-2 mt-3"></div>
+        <button id="startLocal" class="mt-4 w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">Start walk</button>
+      </div>
+      <div id="roomForm" class="hidden">
+        <p class="text-xs text-emerald-800/70 mb-3">Open this file in up to 4 tabs on this device and join the same code. Each tab takes one seat.</p>
+        <input id="roomName" maxlength="14" placeholder="Your name" class="w-full rounded-lg border border-emerald-200 px-3 py-2 mb-2">
+        <div class="flex gap-2">
+          <input id="roomCode" maxlength="8" placeholder="Room code" class="flex-1 min-w-0 rounded-lg border border-emerald-200 px-3 py-2 uppercase">
+          <button id="joinRoom" class="px-4 rounded-lg bg-emerald-700 text-white font-semibold">Join</button>
+        </div>
+        <ul id="seats" class="mt-3 grid gap-1 text-sm"></ul>
+        <button id="startRoom" class="hidden mt-3 w-full py-3 rounded-xl bg-emerald-700 text-white font-semibold">Start (host)</button>
+        <p id="roomStatus" class="text-xs mt-2 text-emerald-700"></p>
+      </div>
+    </div>
+
+    <div id="play" class="hidden bg-white rounded-3xl p-5 shadow-lg ring-1 ring-emerald-900/5">
+      <div id="players" class="grid gap-2 mb-4"></div>
+      <div class="flex items-center gap-4">
+        <div id="die" class="die"></div>
+        <div class="flex-1">
+          <p id="turnText" class="text-sm mb-2 font-medium" aria-live="polite"></p>
+          <button id="roll" class="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-500 disabled:opacity-40 font-bold text-amber-950 shadow">Roll dice</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-3xl p-5 shadow-lg ring-1 ring-emerald-900/5 flex-1 min-h-[200px]">
+      <h3 class="display font-bold mb-2">Park feed</h3>
+      <ol id="log" class="text-sm grid gap-1.5 max-h-80 overflow-y-auto pr-1"></ol>
+    </div>
+  </aside>
+</main>
+
+<div id="tip" class="bg-emerald-950 text-emerald-50 text-xs rounded-xl p-3 shadow-xl"></div>
+
+<div id="win" class="hidden fixed inset-0 z-40 bg-emerald-950/60 backdrop-blur-sm grid place-items-center p-4">
+  <div class="bg-white rounded-3xl p-8 text-center max-w-sm shadow-2xl">
+    <p class="text-xs uppercase tracking-widest text-emerald-600 font-semibold">Tile 100 · Grand Lakeside Pavilion</p>
+    <h2 id="winText" class="display text-3xl font-extrabold mt-2"></h2>
+    <p class="text-sm text-emerald-800/80 mt-2">Sunset over the lake, the Bangkok skyline behind you. Well walked.</p>
+    <button id="again" class="mt-6 px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold">Play again</button>
+  </div>
+</div>
+
+<script>
+// ---------- Data ----------
+const ZONES = [
+  { to: 10,  name: 'Dog Park & Entrance', color: '#d9f99d', fact: 'Benjakitti Forest Park opened in phases (2021–2022) on the former Thailand Tobacco Monopoly site, growing the park to about 450 rai.' },
+  { to: 30,  name: 'Bicycle Track', color: '#bbf7d0', fact: 'A long dedicated cycling loop circles the park, busiest at dawn and dusk when Bangkok cools down.' },
+  { to: 50,  name: 'Wetlands / Ecological Park', color: '#99f6e4', fact: 'Constructed wetlands filter water from the lake and nearby canal through layered planting — a living treatment system.' },
+  { to: 65,  name: 'Skywalk', color: '#a7f3d0', fact: 'The elevated walkway lets visitors stroll above the wetland canopy and links toward Benjasiri Park and Sukhumvit.' },
+  { to: 80,  name: 'Indoor Sports Complex', color: '#fde68a', fact: 'Old tobacco warehouses were kept and repurposed into sports halls and public facilities.' },
+  { to: 90,  name: 'Amphitheatre', color: '#fed7aa', fact: 'Open-air terraced seating hosts concerts, events and morning exercise groups.' },
+  { to: 99,  name: 'The Lake', color: '#bae6fd', fact: 'The large central lake (once called Lake Rajada) anchors the original park and mirrors the city skyline.' },
+  { to: 100, name: 'Grand Lakeside Pavilion', color: '#fcd34d', fact: 'The finish! Watch the sunset over the lake, with the Queen Sirikit Convention Centre nearby.' },
+];
+const MILESTONES = {
+  1: ['Main Gate', 'Start your walk at the Ratchadaphisek Road side of the park.'],
+  4: ['Bike Rental', 'Rent a bicycle near the entrance to cover the big loop.'],
+  7: ['Dog Park', 'A fenced off-leash area — one of few places in central Bangkok for dogs to run free.'],
+  13: ['Boardwalk Start', 'Wooden boardwalks thread through the wetlands just above the water.'],
+  20: ['Cycling Loop', 'The track is separated from walkers to keep everyone safe.'],
+  27: ['Open Lawn', 'Wide lawns with little shade — a downpour here catches everyone.'],
+  33: ['Skywalk Ramp', 'Ramps lead up to the elevated walkway for a bird’s-eye view.'],
+  40: ['Marsh Edge', 'Dense reeds and grasses give habitat to birds and insects.'],
+  45: ['Bird Hide', 'Watch herons, kingfishers and monitor lizards in the wetlands.'],
+  54: ['Marsh Maze', 'Winding paths among tall reeds — easy to lose your way.'],
+  57: ['Skywalk Deck', 'The elevated path weaves through the tree canopy, several metres up.'],
+  62: ['Rain Tree Grove', 'Large shade trees planted to cool the park as they grow.'],
+  69: ['Warehouse Hall', 'Brick tobacco warehouses reused as indoor sports spaces.'],
+  74: ['Running Track', 'An athletics track beside the sports complex.'],
+  76: ['Courts', 'Sports courts open to the public.'],
+  81: ['Amphitheatre', 'Terraced seating facing the green stage.'],
+  89: ['Stage Steps', 'Steep steps — mind your footing after a show.'],
+  92: ['Lakeside Path', 'A shaded path wrapping around the lake.'],
+  97: ['Lake Plaza', 'A broad open plaza in full afternoon sun.'],
+  100: ['Lakeside Pavilion', 'The goal of every walk in this game.'],
+};
+const LADDERS = {
+  4:  [25, 'Rented a bicycle for a fast track!'],
+  13: [46, 'Strolled through the shaded wetland boardwalk!'],
+  33: [57, 'Took the elevated Skywalk shortcut!'],
+  42: [63, 'Spotted a kingfisher and followed it along the trail!'],
+  50: [69, 'Found a cool shortcut to the Sports Complex!'],
+  62: [81, 'Followed the shady rain-tree path!'],
+  74: [92, 'Sprinted the running track straight to the lake!'],
+};
+const SNAKES = {
+  27: [5,  'Sudden tropical rain downpour — seek shelter!'],
+  40: [3,  'A monitor lizard blocked the path — back toward the gate!'],
+  54: [31, 'Got lost in the dense marsh maze.'],
+  76: [58, 'Twisted an ankle on the courts.'],
+  89: [53, 'Tumbled down the amphitheatre steps.'],
+  97: [78, 'Sunburnt and exhausted by the open lake plaza.'],
+};
+const COLORS = ['#059669', '#0284c7', '#f59e0b', '#e11d48'];
+const COLOR_NAMES = ['Emerald', 'Sky', 'Amber', 'Rose'];
+
+// self-check: board data valid
+for (const [a, [b]] of Object.entries(LADDERS)) console.assert(+a < b && b <= 100 && !SNAKES[a], 'bad ladder', a);
+for (const [a, [b]] of Object.entries(SNAKES)) console.assert(+a > b && b >= 1 && +a < 100 && !LADDERS[a], 'bad snake', a);
+
+const zoneOf = n => ZONES.find(z => n <= z.to);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ---------- Board ----------
+const board = document.getElementById('board');
+const tiles = {};
+for (let row = 0; row < 10; row++) for (let col = 0; col < 10; col++) {
+  const rb = 9 - row, n = rb * 10 + (rb % 2 === 0 ? col + 1 : 10 - col);
+  const z = zoneOf(n), m = MILESTONES[n];
+  const el = document.createElement('div');
+  el.className = 'tile' + (m ? ' milestone' : '');
+  el.style.background = z.color;
+  el.tabIndex = 0;
+  el.dataset.n = n;
+  el.innerHTML = `<span class="num">${n}</span>${LADDERS[n] ? ' 🪜' : SNAKES[n] ? ' 🐍' : n === 100 ? ' 🏆' : ''}${m ? `<span class="lbl">${m[0]}</span>` : ''}`;
+  board.appendChild(el);
+  tiles[n] = el;
+}
+const svgNS = 'http://www.w3.org/2000/svg';
+const overlay = document.createElementNS(svgNS, 'svg');
+overlay.id = 'overlay';
+board.appendChild(overlay);
+
+function center(n) {
+  const b = board.getBoundingClientRect(), r = tiles[n].getBoundingClientRect();
+  return [r.left - b.left + r.width / 2, r.top - b.top + r.height / 2];
+}
+function drawOverlay() {
+  let s = '';
+  const w = tiles[1].offsetWidth;
+  for (const [a, [b]] of Object.entries(LADDERS)) {
+    const [x1, y1] = center(a), [x2, y2] = center(b);
+    const len = Math.hypot(x2 - x1, y2 - y1), nx = -(y2 - y1) / len * w * .16, ny = (x2 - x1) / len * w * .16;
+    s += `<g stroke="#7c5a2b" stroke-width="${w*.07}" stroke-linecap="round" opacity=".85">
+      <line x1="${x1+nx}" y1="${y1+ny}" x2="${x2+nx}" y2="${y2+ny}"/><line x1="${x1-nx}" y1="${y1-ny}" x2="${x2-nx}" y2="${y2-ny}"/>`;
+    const rungs = Math.max(2, Math.floor(len / (w * .45)));
+    for (let i = 1; i < rungs; i++) { const t = i / rungs, cx = x1 + (x2 - x1) * t, cy = y1 + (y2 - y1) * t;
+      s += `<line x1="${cx+nx}" y1="${cy+ny}" x2="${cx-nx}" y2="${cy-ny}" stroke-width="${w*.05}"/>`; }
+    s += '</g>';
+  }
+  for (const [a, [b]] of Object.entries(SNAKES)) {
+    const [x1, y1] = center(a), [x2, y2] = center(b);
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    const d = `M${x1},${y1} Q${mx + w * 1.1},${(y1 + my) / 2} ${mx},${my} T${x2},${y2}`;
+    s += `<path d="${d}" fill="none" stroke="#14532d" stroke-width="${w*.2}" stroke-linecap="round" opacity=".8"/>
+      <path d="${d}" fill="none" stroke="#84cc16" stroke-width="${w*.11}" stroke-linecap="round" stroke-dasharray="${w*.15} ${w*.12}"/>
+      <circle cx="${x1}" cy="${y1}" r="${w*.16}" fill="#14532d"/>
+      <circle cx="${x1-w*.05}" cy="${y1-w*.04}" r="${w*.03}" fill="#fef08a"/><circle cx="${x1+w*.05}" cy="${y1-w*.04}" r="${w*.03}" fill="#fef08a"/>`;
+  }
+  overlay.innerHTML = s;
+}
+
+// tooltips (hover, keyboard focus, tap)
+const tip = document.getElementById('tip');
+function showTip(el) {
+  const n = +el.dataset.n, z = zoneOf(n), m = MILESTONES[n];
+  const extra = LADDERS[n] ? `<p class="mt-1 text-lime-300">🪜 ${LADDERS[n][1]} → Tile ${LADDERS[n][0]}</p>` :
+                SNAKES[n] ? `<p class="mt-1 text-rose-300">🐍 ${SNAKES[n][1]} → Tile ${SNAKES[n][0]}</p>` : '';
+  tip.innerHTML = `<p class="font-semibold text-emerald-300">Tile ${n} · ${m ? m[0] : z.name}</p><p class="mt-1">${m ? m[1] : z.fact}</p>${m ? `<p class="mt-1 opacity-70">${z.name}</p>` : ''}${extra}`;
+  const r = el.getBoundingClientRect();
+  tip.style.left = Math.min(innerWidth - 270, Math.max(8, r.left)) + 'px';
+  tip.style.top = (r.top > 150 ? r.top - tip.offsetHeight - 8 : r.bottom + 8) + 'px';
+  tip.style.opacity = 1;
+}
+const hideTip = () => tip.style.opacity = 0;
+board.addEventListener('pointerover', e => { const t = e.target.closest('.tile'); if (t) showTip(t); });
+board.addEventListener('focusin', e => { const t = e.target.closest('.tile'); if (t) showTip(t); });
+board.addEventListener('pointerleave', hideTip);
+board.addEventListener('focusout', hideTip);
+addEventListener('scroll', hideTip, { passive: true });
+
+// ---------- Dice ----------
+const die = document.getElementById('die');
+const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+die.innerHTML = '<span></span>'.repeat(9);
+function showFace(v) { [...die.children].forEach((s, i) => s.style.visibility = PIPS[v].includes(i) ? 'visible' : 'hidden'); }
+showFace(1);
+async function animateDie(v) {
+  die.classList.remove('rolling'); void die.offsetWidth; die.classList.add('rolling');
+  for (let i = 0; i < 8; i++) { showFace(1 + Math.floor(Math.random() * 6)); await sleep(70); }
+  showFace(v);
+}
+
+// ---------- Game ----------
+let state = null;   // { players:[{name,pos}], turn, winner }
+let busy = false;
+let room = null;    // { ch, id, seat, host, seats:[{id,name}] }
+const pawns = [];
+const logEl = document.getElementById('log');
+function log(msg, color) {
+  const li = document.createElement('li');
+  li.className = 'rounded-lg px-2 py-1 bg-emerald-50';
+  li.innerHTML = (color ? `<span class="inline-block w-2 h-2 rounded-full mr-1.5" style="background:${color}"></span>` : '') + msg;
+  logEl.prepend(li);
+}
+
+function placePawn(i, n) {
+  const p = pawns[i];
+  if (n === 0) { p.style.left = (3 + i * 6) + '%'; p.style.top = '104%'; return; } // waiting below the board
+  const [x, y] = center(n), w = tiles[1].offsetWidth, off = [[-1,-1],[1,-1],[-1,1],[1,1]][i];
+  p.style.left = x + off[0] * w * .18 + 'px'; p.style.top = y + off[1] * w * .18 + 'px';
+}
+function renderPawns() {
+  pawns.forEach(p => p.remove()); pawns.length = 0;
+  state.players.forEach((pl, i) => {
+    const p = document.createElement('div'); p.className = 'pawn'; p.style.background = COLORS[i]; p.title = pl.name;
+    board.appendChild(p); pawns.push(p); placePawn(i, pl.pos);
+  });
+}
+function renderPanel() {
+  const live = state.winner == null;
+  document.getElementById('players').innerHTML = state.players.map((pl, i) => `
+    <div class="flex items-center gap-2 rounded-xl px-3 py-2 ${i === state.turn && live ? 'bg-amber-100 ring-2 ring-amber-400' : 'bg-emerald-50'}">
+      <span class="w-3.5 h-3.5 rounded-full" style="background:${COLORS[i]}"></span>
+      <span class="font-semibold flex-1 truncate">${esc(pl.name)}${room && room.seat === i ? ' (you)' : ''}</span>
+      <span class="text-xs text-emerald-800">${pl.pos ? 'Tile ' + pl.pos : 'Start'}</span>
+    </div>`).join('');
+  pawns.forEach((p, i) => p.classList.toggle('active', i === state.turn && live));
+  const cur = state.players[state.turn], mine = !room || room.seat === state.turn;
+  document.getElementById('turnText').textContent = !live ? 'Game over' : mine ? `${cur.name}, your turn!` : `Waiting for ${cur.name}…`;
+  document.getElementById('roll').disabled = busy || !live || !mine;
+}
+
+function beginGame(names) {
+  state = { players: names.map(name => ({ name, pos: 0 })), turn: 0, winner: null };
+  busy = false;
+  logEl.innerHTML = '';
+  document.getElementById('lobby').classList.add('hidden');
+  document.getElementById('play').classList.remove('hidden');
+  document.getElementById('win').classList.add('hidden');
+  renderPawns(); renderPanel();
+  log(`Welcome to Benjakitti Forest Park! ${names.length} walkers set off from the Main Gate.`);
+}
+
+// deterministic: every tab applies the same roll value to the same state
+async function applyRoll(v) {
+  busy = true; renderPanel();
+  const i = state.turn, pl = state.players[i], name = `<b>${esc(pl.name)}</b>`, c = COLORS[i];
+  await animateDie(v);
+  const target = Math.min(100, pl.pos + v);
+  for (let n = pl.pos + 1; n <= target; n++) { pl.pos = n; placePawn(i, n); await sleep(190); }
+  const z = zoneOf(target).name;
+  if (LADDERS[target]) {
+    const [to, msg] = LADDERS[target];
+    await sleep(200); pl.pos = to; placePawn(i, to);
+    log(`${name} rolled ${v}, reached ${z} (Tile ${target}). ${msg} Climbed to Tile ${to}! 🪜`, c);
+  } else if (SNAKES[target]) {
+    const [to, msg] = SNAKES[target];
+    await sleep(200); pl.pos = to; placePawn(i, to);
+    log(`${name} rolled ${v}, landed in ${z} (Tile ${target}). ${msg} Slid down to Tile ${to}. 🐍`, c);
+  } else {
+    log(`${name} rolled ${v} and walked to Tile ${target} · ${MILESTONES[target]?.[0] || z}.`, c);
+  }
+  await sleep(250);
+  if (pl.pos >= 100) { state.winner = i; win(i); }
+  else if (v === 6) log(`${name} rolled a 6 — bonus turn!`, c);
+  else state.turn = (state.turn + 1) % state.players.length;
+  busy = false; renderPanel();
+}
+function win(i) {
+  document.getElementById('winText').textContent = `${state.players[i].name} wins!`;
+  document.getElementById('win').classList.remove('hidden');
+  document.getElementById('again').textContent = room && !room.host ? 'Close' : 'Play again';
+  log(`🏆 <b>${esc(state.players[i].name)}</b> reached the Grand Lakeside Pavilion!`, COLORS[i]);
+  if (window.confetti) {
+    const end = Date.now() + 2500;
+    (function burst() {
+      confetti({ particleCount: 6, angle: 60, spread: 70, origin: { x: 0 }, colors: COLORS });
+      confetti({ particleCount: 6, angle: 120, spread: 70, origin: { x: 1 }, colors: COLORS });
+      if (Date.now() < end) requestAnimationFrame(burst);
+    })();
+  }
+}
+
+document.getElementById('roll').onclick = () => {
+  if (busy || !state || state.winner != null) return;
+  if (room && room.seat !== state.turn) return;
+  const v = 1 + Math.floor(Math.random() * 6);
+  if (room) room.ch.postMessage({ t: 'roll', v });
+  applyRoll(v);
+};
+document.getElementById('again').onclick = () => {
+  const names = state.players.map(p => p.name);
+  if (!room) return beginGame(names);
+  if (!room.host) return document.getElementById('win').classList.add('hidden');
+  room.ch.postMessage({ t: 'start', names, seats: room.seats });
+  beginGame(names);
+};
+
+// ---------- Lobby: hot-seat ----------
+const namesEl = document.getElementById('names'), countEl = document.getElementById('count');
+function renderNames() {
+  const prev = [...namesEl.querySelectorAll('input')].map(i => i.value);
+  namesEl.innerHTML = Array.from({ length: +countEl.value }, (_, i) =>
+    `<div class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full shrink-0" style="background:${COLORS[i]}"></span>
+     <input maxlength="14" value="${esc(prev[i] || 'Player ' + (i + 1))}" aria-label="Player ${i + 1} name" class="flex-1 min-w-0 rounded-lg border border-emerald-200 px-3 py-1.5"></div>`).join('');
+}
+countEl.onchange = renderNames; renderNames();
+document.getElementById('startLocal').onclick = () =>
+  beginGame([...namesEl.querySelectorAll('input')].map((inp, i) => inp.value.trim() || 'Player ' + (i + 1)));
+
+document.querySelectorAll('.mode-btn').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.mode-btn').forEach(x => {
+    const on = x === b;
+    x.classList.toggle('bg-emerald-600', on); x.classList.toggle('text-white', on);
+    x.classList.toggle('bg-emerald-50', !on); x.classList.toggle('text-emerald-800', !on);
+  });
+  document.getElementById('localForm').classList.toggle('hidden', b.dataset.mode !== 'local');
+  document.getElementById('roomForm').classList.toggle('hidden', b.dataset.mode !== 'room');
+});
+
+// ---------- Lobby: room (up to 4 tabs) ----------
+// shortcut: BroadcastChannel only syncs tabs in one browser on one device; for cross-device play swap in a WebSocket server.
+const statusEl = document.getElementById('roomStatus');
+function renderSeats() {
+  document.getElementById('seats').innerHTML = [0, 1, 2, 3].map(i => {
+    const s = room.seats[i];
+    return `<li class="flex items-center gap-2 rounded-lg px-2 py-1 bg-emerald-50"><span class="w-3 h-3 rounded-full" style="background:${COLORS[i]}"></span>
+      ${s ? esc(s.name) + (s.id === room.id ? ' (you)' : '') + (i === 0 ? ' · host' : '') : `<span class="opacity-50">${COLOR_NAMES[i]} seat open</span>`}</li>`;
+  }).join('');
+  const btn = document.getElementById('startRoom');
+  btn.classList.toggle('hidden', !room.host);
+  btn.disabled = room.seats.filter(Boolean).length < 2;
+  btn.classList.toggle('opacity-40', btn.disabled);
+}
+document.getElementById('joinRoom').onclick = async () => {
+  const code = document.getElementById('roomCode').value.trim().toUpperCase();
+  const name = document.getElementById('roomName').value.trim() || 'Walker';
+  if (!code) { statusEl.textContent = 'Enter a room code.'; return; }
+  if (!('BroadcastChannel' in window)) { statusEl.textContent = 'This browser does not support rooms. Use hot-seat.'; return; }
+  if (room) room.ch.close();
+  const me = room = { ch: new BroadcastChannel('bk-' + code), id: Math.random().toString(36).slice(2), seat: null, host: false, seats: [] };
+  me.ch.onmessage = onRoomMsg;
+  statusEl.textContent = 'Looking for host…';
+  me.ch.postMessage({ t: 'hello', id: me.id, name });
+  await sleep(400);
+  if (room === me && me.seat == null) { // nobody answered: become host
+    me.host = true; me.seat = 0; me.seats = [{ id: me.id, name }];
+    statusEl.textContent = `Room ${code} created. Open more tabs (up to 4) and join "${code}".`;
+    renderSeats();
+  }
+};
+document.getElementById('startRoom').onclick = () => {
+  room.seats = room.seats.filter(Boolean);
+  const names = room.seats.map(s => s.name);
+  room.ch.postMessage({ t: 'start', names, seats: room.seats });
+  beginGame(names);
+};
+function onRoomMsg({ data: m }) {
+  if (m.t === 'hello' && room.host) {
+    if (state) return room.ch.postMessage({ t: 'full', to: m.id, msg: 'Game already in progress.' });
+    const free = [0, 1, 2, 3].find(i => !room.seats[i]);
+    if (free == null) return room.ch.postMessage({ t: 'full', to: m.id, msg: 'Room is full (4 players).' });
+    room.seats[free] = { id: m.id, name: m.name };
+    room.ch.postMessage({ t: 'seats', seats: room.seats });
+    renderSeats();
+  } else if (m.t === 'seats' && !room.host) {
+    room.seats = m.seats;
+    const idx = m.seats.findIndex(s => s && s.id === room.id);
+    if (idx >= 0) { room.seat = idx; statusEl.textContent = `Joined as ${COLOR_NAMES[idx]}. Waiting for host to start…`; }
+    renderSeats();
+  } else if (m.t === 'full' && m.to === room.id) {
+    room.seat = -1; statusEl.textContent = m.msg;
+  } else if (m.t === 'start') {
+    room.seats = m.seats; room.seat = m.seats.findIndex(s => s.id === room.id);
+    if (room.seat >= 0) beginGame(m.names);
+  } else if (m.t === 'roll' && state && !busy && room.seat >= 0) {
+    applyRoll(m.v);
+  }
+}
+
+new ResizeObserver(() => { drawOverlay(); state && state.players.forEach((p, i) => placePawn(i, p.pos)); }).observe(board);
+log('Choose hot-seat or a room to begin.');
+</script>
+</body>
+</html>
