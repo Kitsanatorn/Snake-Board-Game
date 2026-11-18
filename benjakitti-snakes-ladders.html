@@ -6,6 +6,7 @@
 <title>Benjakitti Snakes & Ladders</title>
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   body { font-family: Inter, system-ui, sans-serif; background: radial-gradient(1200px 600px at 20% -10%, #d9f99d55, transparent), linear-gradient(160deg, #ecfdf5, #f0fdfa 60%, #ecfccb); }
@@ -52,7 +53,7 @@
       <h2 class="display text-xl font-bold mb-3">Start a game</h2>
       <div class="flex gap-2 mb-4">
         <button data-mode="local" class="mode-btn flex-1 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white">Hot-seat</button>
-        <button data-mode="room" class="mode-btn flex-1 py-2 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-800">Room</button>
+        <button data-mode="room" class="mode-btn flex-1 py-2 rounded-xl text-sm font-semibold bg-emerald-50 text-emerald-800">Online</button>
       </div>
       <div id="localForm">
         <label class="text-sm font-medium">Players
@@ -64,15 +65,26 @@
         <button id="startLocal" class="mt-4 w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold">Start walk</button>
       </div>
       <div id="roomForm" class="hidden">
-        <p class="text-xs text-emerald-800/70 mb-3">Open this file in up to 4 tabs on this device and join the same code. Each tab takes one seat.</p>
-        <input id="roomName" maxlength="14" placeholder="Your name" class="w-full rounded-lg border border-emerald-200 px-3 py-2 mb-2">
-        <div class="flex gap-2">
-          <input id="roomCode" maxlength="8" placeholder="Room code" class="flex-1 min-w-0 rounded-lg border border-emerald-200 px-3 py-2 uppercase">
-          <button id="joinRoom" class="px-4 rounded-lg bg-emerald-700 text-white font-semibold">Join</button>
+        <div id="authBox">
+          <p class="text-xs text-emerald-800/70 mb-3">Sign in to play online with up to 4 friends on any device.</p>
+          <button id="googleBtn" class="w-full py-2 rounded-lg border border-emerald-200 font-semibold mb-2">Continue with Google</button>
+          <div class="flex gap-2">
+            <input id="email" type="email" placeholder="Email" aria-label="Email" class="flex-1 min-w-0 rounded-lg border border-emerald-200 px-3 py-2">
+            <button id="emailBtn" class="px-4 rounded-lg bg-emerald-700 text-white font-semibold">Send link</button>
+          </div>
         </div>
-        <ul id="seats" class="mt-3 grid gap-1 text-sm"></ul>
-        <button id="startRoom" class="hidden mt-3 w-full py-3 rounded-xl bg-emerald-700 text-white font-semibold">Start (host)</button>
-        <p id="roomStatus" class="text-xs mt-2 text-emerald-700"></p>
+        <div id="roomBox" class="hidden">
+          <p class="text-sm">Signed in as <b id="meName"></b> · <button id="signOut" class="underline text-xs">sign out</button></p>
+          <p id="meStats" class="text-xs text-emerald-800/70 mb-3"></p>
+          <button id="createRoom" class="w-full py-2 rounded-lg bg-emerald-600 text-white font-semibold mb-2">Create room</button>
+          <div class="flex gap-2">
+            <input id="roomCode" maxlength="6" placeholder="Room code" aria-label="Room code" class="flex-1 min-w-0 rounded-lg border border-emerald-200 px-3 py-2 uppercase">
+            <button id="joinRoom" class="px-4 rounded-lg bg-emerald-700 text-white font-semibold">Join</button>
+          </div>
+          <ul id="seats" class="mt-3 grid gap-1 text-sm"></ul>
+          <button id="startRoom" class="hidden mt-3 w-full py-3 rounded-xl bg-emerald-700 text-white font-semibold">Start (host)</button>
+        </div>
+        <p id="roomStatus" class="text-xs mt-2 text-emerald-700" aria-live="polite"></p>
       </div>
     </div>
 
@@ -250,7 +262,7 @@ async function animateDie(v) {
 // ---------- Game ----------
 let state = null;   // { players:[{name,pos}], turn, winner }
 let busy = false;
-let room = null;    // { ch, id, seat, host, seats:[{id,name}] }
+let room = null;    // online room: { id, code, host, ch, players:[room_players rows], seat, started, lastMove, queue }
 const pawns = [];
 const logEl = document.getElementById('log');
 function log(msg, color) {
@@ -326,7 +338,7 @@ async function applyRoll(v) {
 function win(i) {
   document.getElementById('winText').textContent = `${state.players[i].name} wins!`;
   document.getElementById('win').classList.remove('hidden');
-  document.getElementById('again').textContent = room && !room.host ? 'Close' : 'Play again';
+  document.getElementById('again').textContent = room ? 'Back to lobby' : 'Play again';
   log(`🏆 <b>${esc(state.players[i].name)}</b> reached the Grand Lakeside Pavilion!`, COLORS[i]);
   if (window.confetti) {
     const end = Date.now() + 2500;
@@ -338,19 +350,18 @@ function win(i) {
   }
 }
 
-document.getElementById('roll').onclick = () => {
+document.getElementById('roll').onclick = async () => {
   if (busy || !state || state.winner != null) return;
   if (room && room.seat !== state.turn) return;
-  const v = 1 + Math.floor(Math.random() * 6);
-  if (room) room.ch.postMessage({ t: 'roll', v });
-  applyRoll(v);
+  if (!room) return applyRoll(1 + Math.floor(Math.random() * 6));
+  busy = true; renderPanel();
+  const { data, error } = await sb.rpc('roll_dice', { p_room: room.id }); // server rolls; result also arrives via realtime
+  if (error) { busy = false; renderPanel(); log(esc(error.message)); return; }
+  queueMove(data);
 };
 document.getElementById('again').onclick = () => {
-  const names = state.players.map(p => p.name);
-  if (!room) return beginGame(names);
-  if (!room.host) return document.getElementById('win').classList.add('hidden');
-  room.ch.postMessage({ t: 'start', names, seats: room.seats });
-  beginGame(names);
+  if (!room) return beginGame(state.players.map(p => p.name));
+  leaveRoom();
 };
 
 // ---------- Lobby: hot-seat ----------
@@ -375,68 +386,152 @@ document.querySelectorAll('.mode-btn').forEach(b => b.onclick = () => {
   document.getElementById('roomForm').classList.toggle('hidden', b.dataset.mode !== 'room');
 });
 
-// ---------- Lobby: room (up to 4 tabs) ----------
-// shortcut: BroadcastChannel only syncs tabs in one browser on one device; for cross-device play swap in a WebSocket server.
-const statusEl = document.getElementById('roomStatus');
+// ---------- Lobby: online room (Supabase) ----------
+// Publishable key is meant for browsers: RLS + the SQL functions in supabase/schema.sql guard the data.
+// Never put the secret key in this file.
+const sb = window.supabase?.createClient('https://apwtyfekyznrgzydflco.supabase.co', 'sb_publishable_b_xVCXDzVKfhxfGqPYotrg_8HZFgakQ');
+const $ = id => document.getElementById(id);
+const statusEl = $('roomStatus');
+const pageUrl = () => location.href.split('#')[0];
+let me = null; // { id, username }
+
+async function refreshAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  $('authBox').classList.toggle('hidden', !!session);
+  $('roomBox').classList.toggle('hidden', !session);
+  if (!session) { me = null; return; }
+  const [{ data: prof }, { data: st }] = await Promise.all([
+    sb.from('profiles').select('username').eq('id', session.user.id).maybeSingle(),
+    sb.from('player_stats').select('*').eq('user_id', session.user.id).maybeSingle(),
+  ]);
+  me = { id: session.user.id, username: prof?.username || 'Walker' };
+  $('meName').textContent = me.username;
+  $('meStats').textContent = st ? `${st.games_played} games · ${st.wins} wins · ${st.win_rate_percent}% win rate` : '';
+}
+if (sb) sb.auth.onAuthStateChange(() => setTimeout(refreshAuth)); // setTimeout: don't call supabase inside the auth callback
+else statusEl.textContent = 'Could not load Supabase. Online play is unavailable; use hot-seat.';
+
+function needsHttp() {
+  if (location.protocol !== 'file:') return false;
+  statusEl.textContent = 'Login needs the page served over http, e.g. run "npx serve ." and open http://localhost:3000/benjakitti-snakes-ladders.html';
+  return true;
+}
+$('googleBtn').onclick = async () => {
+  if (needsHttp()) return;
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: pageUrl() } });
+  if (error) statusEl.textContent = error.message;
+};
+$('emailBtn').onclick = async () => {
+  if (needsHttp()) return;
+  const email = $('email').value.trim();
+  if (!email) { statusEl.textContent = 'Enter your email.'; return; }
+  $('emailBtn').disabled = true;
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: pageUrl() } });
+  $('emailBtn').disabled = false;
+  statusEl.textContent = error ? error.message : 'Check your email for the sign-in link.';
+};
+$('signOut').onclick = async () => { leaveRoom(); await sb.auth.signOut(); };
+
+const nameOf = p => p.profiles?.username || 'Walker';
+async function loadPlayers() {
+  const { data, error } = await sb.from('room_players')
+    .select('user_id, seat, position, profiles(username)').eq('room_id', room.id).order('seat');
+  if (error) throw error;
+  room.players = data;
+  room.seat = data.findIndex(p => p.user_id === me.id);
+}
 function renderSeats() {
-  document.getElementById('seats').innerHTML = [0, 1, 2, 3].map(i => {
-    const s = room.seats[i];
+  $('seats').innerHTML = [0, 1, 2, 3].map(i => {
+    const p = room.players[i];
     return `<li class="flex items-center gap-2 rounded-lg px-2 py-1 bg-emerald-50"><span class="w-3 h-3 rounded-full" style="background:${COLORS[i]}"></span>
-      ${s ? esc(s.name) + (s.id === room.id ? ' (you)' : '') + (i === 0 ? ' · host' : '') : `<span class="opacity-50">${COLOR_NAMES[i]} seat open</span>`}</li>`;
+      ${p ? esc(nameOf(p)) + (p.user_id === me.id ? ' (you)' : '') + (i === 0 ? ' · host' : '') : `<span class="opacity-50">${COLOR_NAMES[i]} seat open</span>`}</li>`;
   }).join('');
-  const btn = document.getElementById('startRoom');
+  const btn = $('startRoom');
   btn.classList.toggle('hidden', !room.host);
-  btn.disabled = room.seats.filter(Boolean).length < 2;
+  btn.disabled = room.players.length < 2;
   btn.classList.toggle('opacity-40', btn.disabled);
 }
-document.getElementById('joinRoom').onclick = async () => {
-  const code = document.getElementById('roomCode').value.trim().toUpperCase();
-  const name = document.getElementById('roomName').value.trim() || 'Walker';
-  if (!code) { statusEl.textContent = 'Enter a room code.'; return; }
-  if (!('BroadcastChannel' in window)) { statusEl.textContent = 'This browser does not support rooms. Use hot-seat.'; return; }
-  if (room) room.ch.close();
-  const me = room = { ch: new BroadcastChannel('bk-' + code), id: Math.random().toString(36).slice(2), seat: null, host: false, seats: [] };
-  me.ch.onmessage = onRoomMsg;
-  statusEl.textContent = 'Looking for host…';
-  me.ch.postMessage({ t: 'hello', id: me.id, name });
-  await sleep(400);
-  if (room === me && me.seat == null) { // nobody answered: become host
-    me.host = true; me.seat = 0; me.seats = [{ id: me.id, name }];
-    statusEl.textContent = `Room ${code} created. Open more tabs (up to 4) and join "${code}".`;
-    renderSeats();
-  }
-};
-document.getElementById('startRoom').onclick = () => {
-  room.seats = room.seats.filter(Boolean);
-  const names = room.seats.map(s => s.name);
-  room.ch.postMessage({ t: 'start', names, seats: room.seats });
-  beginGame(names);
-};
-function onRoomMsg({ data: m }) {
-  if (m.t === 'hello' && room.host) {
-    if (state) return room.ch.postMessage({ t: 'full', to: m.id, msg: 'Game already in progress.' });
-    const free = [0, 1, 2, 3].find(i => !room.seats[i]);
-    if (free == null) return room.ch.postMessage({ t: 'full', to: m.id, msg: 'Room is full (4 players).' });
-    room.seats[free] = { id: m.id, name: m.name };
-    room.ch.postMessage({ t: 'seats', seats: room.seats });
-    renderSeats();
-  } else if (m.t === 'seats' && !room.host) {
-    room.seats = m.seats;
-    const idx = m.seats.findIndex(s => s && s.id === room.id);
-    if (idx >= 0) { room.seat = idx; statusEl.textContent = `Joined as ${COLOR_NAMES[idx]}. Waiting for host to start…`; }
-    renderSeats();
-  } else if (m.t === 'full' && m.to === room.id) {
-    room.seat = -1; statusEl.textContent = m.msg;
-  } else if (m.t === 'start') {
-    room.seats = m.seats; room.seat = m.seats.findIndex(s => s.id === room.id);
-    if (room.seat >= 0) beginGame(m.names);
-  } else if (m.t === 'roll' && state && !busy && room.seat >= 0) {
-    applyRoll(m.v);
-  }
+
+// moves and game start run through one queue so animations never overlap or interleave
+const enqueue = fn => { const r = room; r.queue = r.queue.then(() => r === room && fn()).catch(e => log(esc(e.message))); };
+function queueMove(m) {
+  enqueue(async () => {
+    if (!room.started || m.id <= room.lastMove) return; // dedupe: RPC result + realtime echo
+    room.lastMove = m.id;
+    const i = room.players.findIndex(p => p.user_id === m.user_id);
+    if (i < 0) return;
+    state.turn = i; state.players[i].pos = m.from_pos; // server is the source of truth
+    placePawn(i, m.from_pos);
+    await applyRoll(m.roll);
+  });
+}
+async function startFromDb(r) {
+  if (room.started) return;
+  // last move id first, then positions: a move landing in between is replayed from its from_pos, so nothing is lost
+  const { data: last } = await sb.from('moves').select('id').eq('room_id', r.id).order('id', { ascending: false }).limit(1);
+  await loadPlayers();
+  room.lastMove = last?.[0]?.id || 0;
+  room.started = true;
+  beginGame(room.players.map(nameOf));
+  state.players.forEach((pl, i) => { pl.pos = room.players[i].position; placePawn(i, pl.pos); });
+  state.turn = Math.max(0, room.players.findIndex(p => p.seat === r.current_seat));
+  if (r.status === 'finished') state.winner = room.players.findIndex(p => p.user_id === r.winner_id);
+  renderPanel();
 }
 
+async function enterRoom(r) {
+  leaveRoom();
+  const mine = room = { id: r.id, code: r.code, host: r.host_id === me.id, players: [], seat: -1, started: false, lastMove: 0, queue: Promise.resolve() };
+  mine.ch = sb.channel('room-' + r.id)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'room_players', filter: `room_id=eq.${r.id}` },
+      () => mine === room && !room.started && loadPlayers().then(renderSeats))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${r.id}` },
+      ({ new: nr }) => mine === room && nr.status !== 'lobby' && enqueue(() => startFromDb(nr)))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'moves', filter: `room_id=eq.${r.id}` },
+      ({ new: m }) => mine === room && queueMove(m));
+  statusEl.textContent = 'Connecting…';
+  await new Promise(res => mine.ch.subscribe(s => {
+    if (s === 'SUBSCRIBED') res();
+    else if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT') { statusEl.textContent = 'Live updates unavailable (' + s + '). Refresh to retry.'; res(); }
+  }));
+  if (mine !== room) return;
+  await loadPlayers();
+  const { data: fresh, error } = await sb.from('rooms').select('*').eq('id', r.id).single();
+  if (error) { statusEl.textContent = error.message; return; }
+  if (fresh.status === 'lobby') {
+    statusEl.textContent = `Room ${r.code}. Share this code; friends join from any device.`;
+    renderSeats();
+  } else enqueue(() => startFromDb(fresh));
+}
+function leaveRoom() {
+  if (room?.ch) sb.removeChannel(room.ch);
+  room = null; state = null;
+  $('seats').innerHTML = ''; $('startRoom').classList.add('hidden'); statusEl.textContent = '';
+  $('win').classList.add('hidden'); $('play').classList.add('hidden'); $('lobby').classList.remove('hidden');
+  pawns.forEach(p => p.remove()); pawns.length = 0;
+  if (me) refreshAuth(); // stats may have changed
+}
+
+async function callRoom(fn, args) {
+  statusEl.textContent = '…';
+  const { data, error } = await sb.rpc(fn, args);
+  if (error) { statusEl.textContent = error.message; return null; }
+  return data;
+}
+$('createRoom').onclick = async () => { const r = await callRoom('create_room'); if (r) enterRoom(r); };
+$('joinRoom').onclick = async () => {
+  const code = $('roomCode').value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{6}$/.test(code)) { statusEl.textContent = 'Room codes are 6 letters/numbers.'; return; }
+  const r = await callRoom('join_room', { p_code: code });
+  if (r) enterRoom(r);
+};
+$('startRoom').onclick = async () => {
+  const r = await callRoom('start_game', { p_room: room.id });
+  if (r) enqueue(() => startFromDb(r)); // realtime also delivers this; startFromDb ignores the repeat
+};
+
 new ResizeObserver(() => { drawOverlay(); state && state.players.forEach((p, i) => placePawn(i, p.pos)); }).observe(board);
-log('Choose hot-seat or a room to begin.');
+log('Choose hot-seat or online to begin.');
 </script>
 </body>
 </html>
