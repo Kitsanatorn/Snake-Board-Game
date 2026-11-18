@@ -1071,6 +1071,17 @@ async function animateDiceRoll(v) {
 // 5. GAME STATE & ENGINE
 // ==========================================
 let gameState = null;
+const ONLINE_KEY = 'benjakitti_online';
+function saveOnline() {
+  try {
+    sessionStorage.setItem(ONLINE_KEY, JSON.stringify({
+      pin: netSession.pin, isHost: netSession.isHost, myId: netSession.myId,
+      name: netSession.myName, avatar: netSession.myAvatar,
+      state: netSession.isHost && gameState ? { players: gameState.players, turn: gameState.turn, winner: gameState.winner } : null
+    }));
+  } catch(e) {}
+}
+function clearOnline() { try { sessionStorage.removeItem(ONLINE_KEY); } catch(e) {} }
 const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`); // names come from other players
 
 // Online AFK auto-roll: everyone shows the countdown, only the host rolls (one authority = no double rolls)
@@ -1157,6 +1168,8 @@ function updateHUD() {
 
   document.getElementById('turnLabel').textContent = !live ? 'จบเกมแล้ว' : myTurn ? 'ตาของคุณแล้ว!' : cur.bot ? `${cur.name} กำลังเดิน...` : `รอ ${cur.name} ทอย...`;
   document.getElementById('turnStatusBadge').textContent = live ? (myTurn ? 'ทอยเต๋าได้เลย 🎲' : 'กำลังรอ...') : 'ยินดีด้วย! 🏆';
+
+  if (gameState.mode === 'host' || gameState.mode === 'guest') saveOnline();
 
   // Roll button state
   const btnRoll = document.getElementById('btnRoll');
@@ -1462,6 +1475,9 @@ class NetworkSession {
           // Re-send roster in case guest missed it
           this.broadcastRoster();
         }
+      } else if (data.type === 'REJOIN' && gameState && !isBusy && gameState.players.some(p => p.id === data.id)) {
+        // Reloaded guest asks for the live game; skip while a move animates so positions are final
+        this.send({ type: 'STATE', to: data.id, state: { players: gameState.players, turn: gameState.turn, winner: gameState.winner } });
       } else if (data.type === 'READY' && gameState && gameState.winner != null) {
         readyIds.add(data.id);
         updateWinButton();
@@ -1476,6 +1492,12 @@ class NetworkSession {
         const myIdx = this.players.findIndex(p => p.id === this.myId);
         if (myIdx >= 0) this.mySeat = myIdx;
         renderHostLobbyPlayers();
+      } else if (data.type === 'STATE' && data.to === this.myId && this.joinRetryTimer && Array.isArray(data.state?.players) && data.state.players.length) {
+        clearInterval(this.joinRetryTimer);
+        this.joinRetryTimer = null;
+        this.mySeat = Math.max(0, data.state.players.findIndex(p => p.id === this.myId));
+        this.players = data.state.players.map((p, i) => ({ id: p.id, name: p.name, avatar: p.avatar, seat: i }));
+        restoreGame(data.state, 'guest');
       } else if (data.type === 'KICK' && data.id === this.myId) {
         // shortcut: any client on the channel could forge KICK (no auth), fine for a casual park game
         this.leave();
@@ -1534,6 +1556,7 @@ class NetworkSession {
     if (this.bc) { try { this.bc.close(); } catch(e) {} this.bc = null; }
     if (this.sbChannel && sbClient) { try { sbClient.removeChannel(this.sbChannel); } catch(e) {} this.sbChannel = null; }
     this.ready = false;
+    clearOnline();
   }
 }
 
@@ -1690,8 +1713,9 @@ document.getElementById('btnCreateHostRoom').onclick = () => {
   document.getElementById('displayHostPin').textContent = `${pin.slice(0,3)} ${pin.slice(3)}`;
 
   netSession.init(pin, true, hostName, hostAvatar);
+  netSession.myId = 'host_' + Math.random().toString(36).slice(2, 7);
   netSession.players = [{
-    id: 'host_' + Math.random().toString(36).slice(2, 7),
+    id: netSession.myId,
     name: hostName,
     avatar: hostAvatar,
     seat: 0
@@ -1929,6 +1953,46 @@ document.getElementById('btnWinHome').onclick = () => {
   netSession.leave();
   showScreen('home');
 };
+
+// ==========================================
+// 10. RELOAD RECOVERY (sessionStorage = per tab, survives reload, gone when tab closes)
+// ==========================================
+function restoreGame(state, mode) {
+  initGameSession(state.players.map(p => ({ ...p })), mode);
+  gameState.turn = state.turn;
+  gameState.winner = state.winner;
+  renderPawns();
+  updateHUD();
+  if (state.winner != null) showWinnerModal(gameState.players[state.winner]);
+}
+
+(() => {
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(ONLINE_KEY)); } catch(e) {}
+  if (!saved?.pin || !saved.myId) return;
+  if (saved.isHost) {
+    if (!saved.state?.players?.length) return clearOnline();
+    netSession.init(saved.pin, true, saved.name, saved.avatar);
+    netSession.myId = saved.myId;
+    netSession.players = saved.state.players.map((p, i) => ({ id: p.id, name: p.name, avatar: p.avatar, seat: i }));
+    restoreGame(saved.state, 'host');
+  } else {
+    netSession.init(saved.pin, false, saved.name, saved.avatar);
+    netSession.myId = saved.myId;
+    const ask = () => netSession.send({ type: 'REJOIN', id: saved.myId });
+    ask();
+    netSession.joinRetryTimer = setInterval(ask, 1200);
+    showScreen('multi');
+    panelJoin.classList.add('hidden');
+    panelHost.classList.add('hidden');
+    panelPass.classList.add('hidden');
+    panelGuestWaiting.classList.remove('hidden');
+    document.getElementById('guestDisplayPin').textContent = `${saved.pin.slice(0,3)} ${saved.pin.slice(3)}`;
+    document.getElementById('guestMyAvatar').textContent = saved.avatar;
+    document.getElementById('guestMyName').textContent = saved.name;
+    saveOnline(); // init() -> leave() cleared it; keep it until STATE arrives
+  }
+})();
 </script>
 </body>
 </html>
