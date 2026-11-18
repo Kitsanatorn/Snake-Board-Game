@@ -1074,14 +1074,14 @@ let gameState = null;
 const ONLINE_KEY = 'benjakitti_online';
 function saveOnline() {
   try {
-    sessionStorage.setItem(ONLINE_KEY, JSON.stringify({
+    localStorage.setItem(ONLINE_KEY, JSON.stringify({
       pin: netSession.pin, isHost: netSession.isHost, myId: netSession.myId,
-      name: netSession.myName, avatar: netSession.myAvatar,
+      name: netSession.myName, avatar: netSession.myAvatar, savedAt: Date.now(),
       state: netSession.isHost && gameState ? { players: gameState.players, turn: gameState.turn, winner: gameState.winner } : null
     }));
   } catch(e) {}
 }
-function clearOnline() { try { sessionStorage.removeItem(ONLINE_KEY); } catch(e) {} }
+function clearOnline() { try { localStorage.removeItem(ONLINE_KEY); } catch(e) {} }
 const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`); // names come from other players
 
 // Online AFK auto-roll: everyone shows the countdown, only the host rolls (one authority = no double rolls)
@@ -1966,7 +1966,7 @@ document.getElementById('btnWinHome').onclick = () => {
 };
 
 // ==========================================
-// 10. RELOAD RECOVERY (sessionStorage = per tab, survives reload, gone when tab closes)
+// 10. RELOAD RECOVERY (localStorage so it survives reloads and new tabs; user confirms before rejoining)
 // ==========================================
 function restoreGame(state, mode) {
   initGameSession(state.players.map(p => ({ ...p })), mode);
@@ -1979,8 +1979,11 @@ function restoreGame(state, mode) {
 
 (() => {
   let saved = null;
-  try { saved = JSON.parse(sessionStorage.getItem(ONLINE_KEY)); } catch(e) {}
+  try { saved = JSON.parse(localStorage.getItem(ONLINE_KEY)); } catch(e) {}
   if (!saved?.pin || !saved.myId) return;
+  // shortcut: 3h expiry for abandoned games, tune if sessions run longer
+  if (!(Date.now() - saved.savedAt < 3 * 3600 * 1000)) return clearOnline();
+  if (!confirm(`พบเกมออนไลน์ที่ยังเล่นค้างอยู่ (PIN ${saved.pin})\n\nกด "ตกลง" เพื่อกลับเข้าเกม\nกด "ยกเลิก" เพื่อไปหน้าหลัก`)) return clearOnline();
   if (saved.isHost) {
     if (!saved.state?.players?.length) return clearOnline();
     netSession.init(saved.pin, true, saved.name, saved.avatar);
