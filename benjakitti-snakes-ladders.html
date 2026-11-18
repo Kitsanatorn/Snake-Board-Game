@@ -2,81 +2,112 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f7a45">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐍</text></svg>">
 <title>สวนเบญจกิตติ · บันไดงูหรรษา (Benjakitti Snakes & Ladders)</title>
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Prompt:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Mali:wght@600;700&family=Prompt:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root {
-    --park-forest: #064e3b;
-    --park-emerald: #10b981;
-    --park-lime: #84cc16;
-    --park-gold: #f59e0b;
-    --park-lake: #0284c7;
-    --park-wetland: #0d9488;
+    --ink: #1d3322;
+    --paper: #fffaf0;
+    --jungle: #1f7a45;
+    --jungle-deep: #0f3d24;
+    --sun: #ffc53d;
+    --snake: #e5484d;
+    --wood: #9a5b26;
+    --wood-light: #d79a55;
+    --frame-pad: clamp(6px, 1.6vw, 14px);
+    --board-pad: clamp(3px, 0.8vw, 6px);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
     font-family: 'Prompt', system-ui, sans-serif;
-    color: #112e23;
-    background: radial-gradient(circle at 15% 15%, #dcfce7 0%, #f0fdf4 45%, #e0f2fe 100%);
+    color: var(--ink);
+    background-color: #fbf1d8;
+    background-image:
+      radial-gradient(120% 60% at 50% 115%, rgba(31,122,69,.28) 0%, transparent 60%),
+      radial-gradient(60% 40% at 0% 0%, rgba(255,197,61,.30) 0%, transparent 70%),
+      radial-gradient(50% 40% at 100% 10%, rgba(229,72,77,.12) 0%, transparent 70%),
+      repeating-conic-gradient(rgba(31,122,69,.055) 0 25%, transparent 0 50%);
+    background-size: auto, auto, auto, 72px 72px;
+    background-attachment: fixed;
     min-height: 100vh;
+    min-height: 100svh;
     overflow-x: hidden;
+    touch-action: manipulation;
   }
-  .font-game { font-family: 'Fredoka', 'Prompt', cursive, sans-serif; }
+  .font-game { font-family: 'Fredoka', 'Mali', 'Prompt', sans-serif; }
+  h1.font-game, h2.font-game, h3.font-game { font-family: 'Mali', 'Fredoka', 'Prompt', sans-serif; }
+  :focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  }
+
+  /* Modal entrance (class used in markup, was undefined) */
+  .animate-in { animation: pop-in .28s cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
 
   /* 3D Tactile Buttons */
   .btn-3d {
-    transition: all 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: 0 6px 0 rgba(0,0,0,0.18), 0 10px 18px rgba(0,0,0,0.12);
+    transition: transform .12s cubic-bezier(.34,1.56,.64,1), box-shadow .12s ease, filter .12s ease;
+    box-shadow: 0 6px 0 var(--btn-edge, rgba(0,0,0,.25)), 0 12px 20px rgba(15,61,36,.18);
+    text-shadow: 0 2px 0 rgba(0,0,0,.18);
   }
-  .btn-3d:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 0 rgba(0,0,0,0.18), 0 14px 22px rgba(0,0,0,0.15);
+  @media (hover: hover) {
+    .btn-3d:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.05); box-shadow: 0 8px 0 var(--btn-edge, rgba(0,0,0,.25)), 0 16px 24px rgba(15,61,36,.2); }
   }
-  .btn-3d:active:not(:disabled) {
-    transform: translateY(4px);
-    box-shadow: 0 2px 0 rgba(0,0,0,0.22), 0 4px 8px rgba(0,0,0,0.1);
-  }
-  .btn-green {
-    background: linear-gradient(180deg, #34d399 0%, #059669 100%);
-    border-bottom: 5px solid #046c4e;
-  }
-  .btn-lime {
-    background: linear-gradient(180deg, #bef264 0%, #65a30d 100%);
-    border-bottom: 5px solid #4d7c0f;
-  }
-  .btn-orange {
-    background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
-    border-bottom: 5px solid #b45309;
-  }
-  .btn-blue {
-    background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
-    border-bottom: 5px solid #0369a1;
-  }
+  .btn-3d:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 1px 0 var(--btn-edge, rgba(0,0,0,.25)), 0 4px 8px rgba(0,0,0,.12); }
+  .btn-green  { --btn-edge: #145c33; background: linear-gradient(180deg, #3fbf6e 0%, #1f8a4c 100%); }
+  .btn-lime   { --btn-edge: #4d7c0f; background: linear-gradient(180deg, #bef264 0%, #65a30d 100%); }
+  .btn-orange { --btn-edge: #a3470f; background: linear-gradient(180deg, #ffb547 0%, #f07a1a 100%); }
+  .btn-blue   { --btn-edge: #0369a1; background: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%); }
 
-  /* Glass Card */
+  /* Paper card: board-game box insert */
   .game-card {
-    background: rgba(255, 255, 255, 0.90);
-    backdrop-filter: blur(16px);
-    border: 2px solid rgba(255, 255, 255, 0.95);
-    box-shadow: 0 16px 36px rgba(6, 78, 59, 0.12), 0 4px 10px rgba(6, 78, 59, 0.04);
+    background: var(--paper);
+    border: 2px solid rgba(29,51,34,.14);
+    box-shadow: 0 4px 0 rgba(29,51,34,.12), 0 14px 30px rgba(15,61,36,.10);
   }
 
-  /* BIG BOARD STYLING */
+  /* Home hero */
+  .hero-board { width: min(260px, 70vw); height: auto; filter: drop-shadow(0 18px 24px rgba(15,61,36,.25)); }
+  .hero-snake { animation: snake-sway 3.2s ease-in-out infinite alternate; transform-origin: 70% 30%; }
+  @keyframes snake-sway { to { transform: rotate(-3deg) translateY(2px); } }
+  .title-snake { color: var(--jungle-deep); text-shadow: 0 3px 0 var(--sun); }
+
+  /* BOARD: wooden frame */
   #board-outer {
     position: relative;
     width: 100%;
     max-width: 820px;
     margin: 0 auto;
-    border-radius: 32px;
-    background: linear-gradient(145deg, #166534, #064e3b);
-    padding: 12px;
-    box-shadow: 0 24px 60px rgba(6, 78, 59, 0.28), 0 6px 14px rgba(0,0,0,0.1), inset 0 2px 4px rgba(255,255,255,0.3);
+    border-radius: clamp(14px, 3vw, 28px);
+    padding: var(--frame-pad);
+    padding-bottom: calc(var(--frame-pad) + 8%); /* start lane under tile 1 so pos-0 pawns stay visible */
+    background:
+      repeating-linear-gradient(100deg, rgba(255,255,255,.05) 0 3px, transparent 3px 11px),
+      linear-gradient(145deg, #b36d2f, #7a4319);
+    box-shadow: 0 22px 50px rgba(74,40,12,.35), inset 0 2px 0 rgba(255,255,255,.25), inset 0 -4px 0 rgba(0,0,0,.2);
+  }
+  #board-outer::after {
+    content: 'START ▸';
+    position: absolute;
+    left: calc(var(--frame-pad) + 2%);
+    bottom: calc(var(--frame-pad) * .5);
+    height: 8%;
+    display: flex; align-items: center;
+    font: 700 clamp(9px, 1.4vw, 13px)/1 'Fredoka', sans-serif;
+    letter-spacing: .15em;
+    color: rgba(255,240,210,.55);
+    pointer-events: none;
+    padding-left: 34%;
   }
   #board {
     aspect-ratio: 1 / 1;
@@ -84,17 +115,16 @@
     display: grid;
     grid-template-columns: repeat(10, minmax(0, 1fr));
     grid-template-rows: repeat(10, minmax(0, 1fr));
-    gap: 4px;
+    gap: clamp(1px, .35vw, 3px);
     position: relative;
-    border-radius: 24px;
-    background: #0d3d2e;
-    padding: 6px;
-    overflow: hidden;
-    box-sizing: border-box;
+    border-radius: clamp(8px, 2vw, 18px);
+    background: #5b3211;
+    padding: var(--board-pad);
+    box-shadow: inset 0 3px 8px rgba(0,0,0,.35);
   }
   .tile {
     position: relative;
-    border-radius: 8px;
+    border-radius: clamp(3px, .8vw, 8px);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -102,75 +132,63 @@
     user-select: none;
     cursor: pointer;
     overflow: hidden;
-    width: 100%;
-    height: 100%;
     min-width: 0;
     min-height: 0;
-    box-sizing: border-box;
-    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.1), inset 0 1px 1px rgba(255,255,255,0.6);
-    transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.7);
+    transition: transform .16s ease, filter .16s ease, box-shadow .16s ease;
   }
-  .tile:hover {
-    transform: scale(1.1);
-    z-index: 25;
-    filter: brightness(1.06);
-    box-shadow: 0 8px 18px rgba(0,0,0,0.22);
+  .tile.tile-alt { background-image: linear-gradient(rgba(255,250,240,.62), rgba(255,250,240,.62)); }
+  .tile.is-ladder { box-shadow: inset 0 0 0 2px rgba(31,122,69,.55), inset 0 -2px 0 rgba(0,0,0,.12); }
+  .tile.is-snake  { box-shadow: inset 0 0 0 2px rgba(229,72,77,.6), inset 0 -2px 0 rgba(0,0,0,.12); }
+  .tile.is-goal   { background-image: linear-gradient(135deg, #ffe27a, #ffb800); }
+  @media (hover: hover) {
+    .tile:hover { transform: scale(1.12); z-index: 5; filter: brightness(1.05); box-shadow: 0 8px 18px rgba(0,0,0,.28); }
   }
-  .tile-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    line-height: 1;
-  }
+  .tile-header { display: flex; align-items: center; justify-content: space-between; width: 100%; line-height: 1; }
   .tile-num {
-    font-size: clamp(8px, 1.1vw, 13px);
-    font-weight: 800;
+    font-size: clamp(8px, 1.5vw, 15px);
+    font-weight: 700;
     line-height: 1;
-    color: #064e3b;
-    opacity: 0.88;
+    color: var(--jungle-deep);
     font-family: 'Fredoka', sans-serif;
   }
   .tile-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     flex: 1;
-    font-size: clamp(10px, 1.4vw, 19px);
+    font-size: clamp(9px, 1.7vw, 20px);
     line-height: 1;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
     min-height: 0;
     overflow: hidden;
+    opacity: .9;
   }
   .tile-name {
-    font-size: clamp(5.5px, 0.7vw, 8px);
-    line-height: 1;
-    font-weight: 800;
-    color: #064e3b;
+    font-size: clamp(5.5px, .72vw, 8px);
+    line-height: 1.1;
+    font-weight: 700;
+    color: var(--jungle-deep);
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     width: 100%;
-    height: 9px;
   }
-  .tile-badge {
-    font-size: clamp(7px, 0.85vw, 10px);
-    line-height: 1;
-    padding: 1px 2px;
-    border-radius: 4px;
-    background: rgba(255,255,255,0.92);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+  .tile-badge { font-size: clamp(6px, .9vw, 10px); line-height: 1; }
+  @media (max-width: 639px) {
+    .tile-name, .tile-badge { display: none; }
+    .tile { padding: 1px 2px; }
   }
 
-  /* SVG Overlays */
+  /* SVG overlay must share the board's coordinate origin (board sits inside the frame padding) */
   #overlay {
     position: absolute;
-    inset: 6px;
-    width: calc(100% - 12px);
-    height: calc(100% - 12px);
+    left: var(--frame-pad);
+    top: var(--frame-pad);
+    width: calc(100% - var(--frame-pad) * 2);
+    aspect-ratio: 1 / 1;
+    height: auto;
     pointer-events: none;
     z-index: 10;
+    overflow: visible;
   }
 
   /* Pawns */
@@ -182,78 +200,60 @@
     z-index: 30;
     display: grid;
     place-items: center;
-    font-size: clamp(14px, 2.5vw, 26px);
-    border: 3.5px solid #fff;
-    box-shadow: 0 8px 18px rgba(0,0,0,0.4), 0 0 0 2px rgba(0,0,0,0.15);
-    transition: left 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    font-size: clamp(11px, 2.4vw, 24px);
+    border: clamp(2px, .4vw, 3.5px) solid #fff;
+    box-shadow: 0 6px 14px rgba(0,0,0,.4), 0 0 0 2px rgba(0,0,0,.15);
+    transition: left .18s cubic-bezier(.34,1.56,.64,1), top .18s cubic-bezier(.34,1.56,.64,1);
     transform: translate(-50%, -50%);
     cursor: pointer;
   }
-  .pawn.active {
-    animation: pawn-bounce 0.75s ease-in-out infinite alternate;
-  }
+  .pawn.active { animation: pawn-bounce .75s ease-in-out infinite alternate; z-index: 31; }
   @keyframes pawn-bounce {
     0% { transform: translate(-50%, -50%) scale(1); }
-    100% { transform: translate(-50%, -78%) scale(1.22); filter: drop-shadow(0 12px 14px rgba(0,0,0,0.35)); }
+    100% { transform: translate(-50%, -75%) scale(1.18); }
   }
 
-  /* 3D Dice */
+  /* Dice */
   .dice-box {
-    width: 72px;
-    height: 72px;
-    border-radius: 20px;
-    background: linear-gradient(145deg, #ffffff, #f0fdf4);
-    border: 3.5px solid #34d399;
-    box-shadow: 0 10px 22px rgba(5, 150, 105, 0.25), inset 0 -4px 0 #a7f3d0;
+    width: 72px; height: 72px;
+    border-radius: 18px;
+    background: linear-gradient(145deg, #ffffff, #fff3d6);
+    border: 3px solid var(--ink);
+    box-shadow: 0 5px 0 var(--ink), 0 12px 20px rgba(15,61,36,.2);
     display: grid;
     grid-template: repeat(3, 1fr) / repeat(3, 1fr);
-    padding: 8px;
+    padding: 9px;
     flex-shrink: 0;
   }
-  .dice-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #047857;
-    place-self: center;
-    visibility: hidden;
-    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.3);
-  }
-  .dice-box.rolling {
-    animation: dice-tumble 0.5s ease-out;
-  }
+  .dice-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--snake); place-self: center; visibility: hidden; box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
+  .dice-box.rolling { animation: dice-tumble .5s ease-out; }
   @keyframes dice-tumble {
-    0% { transform: rotate(0deg) scale(1); }
-    30% { transform: rotate(180deg) scale(1.25); }
-    70% { transform: rotate(315deg) scale(0.9); }
+    0% { transform: rotate(0) scale(1); }
+    30% { transform: rotate(180deg) scale(1.2); }
+    70% { transform: rotate(315deg) scale(.92); }
     100% { transform: rotate(360deg) scale(1); }
   }
-
-  .pin-input {
-    letter-spacing: 0.35em;
-    font-weight: 800;
-    font-family: 'Fredoka', 'Prompt', sans-serif;
+  @media (max-width: 380px) {
+    .dice-box { width: 60px; height: 60px; padding: 7px; border-radius: 15px; }
+    .dice-dot { width: 10px; height: 10px; }
   }
 
-  /* Passport Stamp Badge */
-  .stamp-badge {
-    transition: all 0.2s ease;
-  }
-  .stamp-badge.unlocked {
-    filter: grayscale(0);
-    opacity: 1;
-    transform: scale(1.05);
-  }
-  .stamp-badge.locked {
-    filter: grayscale(1);
-    opacity: 0.4;
+  .pin-input { letter-spacing: .35em; font-weight: 700; font-family: 'Fredoka', 'Prompt', sans-serif; }
+
+  .stamp-badge { transition: all .2s ease; }
+  .stamp-badge.unlocked { filter: none; opacity: 1; transform: rotate(-3deg) scale(1.04); }
+  .stamp-badge.locked { filter: grayscale(1); opacity: .45; }
+
+  /* Desktop: keep the whole board inside the viewport */
+  @media (min-width: 1024px) {
+    #board-outer { max-width: min(820px, calc((100svh - 100px) / 1.1)); }
   }
 </style>
 </head>
 <body class="relative flex flex-col min-h-screen">
 
 <!-- Global Audio Mute Toggle Button -->
-<button id="btnSoundToggle" class="fixed top-4 right-4 z-50 w-11 h-11 rounded-2xl game-card flex items-center justify-center text-xl shadow-md hover:scale-105 active:scale-95 transition" title="เปิด/ปิดเสียง">
+<button id="btnSoundToggle" class="fixed top-3 right-3 sm:top-4 sm:right-4 z-50 w-11 h-11 rounded-2xl game-card flex items-center justify-center text-xl shadow-md hover:scale-105 active:scale-95 transition" title="เปิด/ปิดเสียง" aria-label="เปิด/ปิดเสียง">
   <span id="soundIcon">🔊</span>
 </button>
 
@@ -270,8 +270,7 @@
 
     <!-- Game Title -->
     <div class="relative my-2">
-      <div class="text-6xl sm:text-7xl mb-2 filter drop-shadow-md">🌿🎲🪜</div>
-      <h1 class="font-game text-4xl sm:text-5xl font-extrabold text-emerald-950 tracking-tight leading-tight drop-shadow-sm">
+      <h1 class="font-game title-snake text-5xl sm:text-6xl font-extrabold tracking-tight leading-tight">
         บันไดงูสวนเบญฯ
       </h1>
       <p class="font-game text-xl sm:text-2xl font-bold text-emerald-600 mt-1">
@@ -280,11 +279,38 @@
       <p class="text-xs text-emerald-800/80 mt-2 font-medium">ผจญภัยแผนที่จริง 8 โซนแลนด์มาร์คสวนป่าเบญจกิตติ</p>
     </div>
 
-    <!-- Park Scene Graphic -->
-    <div class="my-6 relative py-3">
-      <div class="w-48 h-48 mx-auto rounded-3xl bg-gradient-to-tr from-emerald-400 via-teal-300 to-lime-300 flex items-center justify-center shadow-2xl shadow-emerald-900/18 border-4 border-white transform -rotate-2 hover:rotate-0 transition duration-300">
-        <div class="text-7xl filter drop-shadow-lg">🦊🏃‍♂️💨</div>
-      </div>
+    <!-- Hero: mini snakes & ladders board -->
+    <div class="my-6 flex justify-center" aria-hidden="true">
+      <svg class="hero-board" viewBox="0 0 240 240">
+        <rect x="6" y="6" width="228" height="228" rx="26" fill="#9a5b26"/>
+        <rect x="18" y="18" width="204" height="204" rx="16" fill="#5b3211"/>
+        <g transform="translate(22 22)">
+          <g id="heroTiles"></g>
+        </g>
+        <!-- ladder -->
+        <g stroke-linecap="round">
+          <line x1="60" y1="196" x2="104" y2="72" stroke="#5b3211" stroke-width="13"/>
+          <line x1="92" y1="206" x2="136" y2="82" stroke="#5b3211" stroke-width="13"/>
+          <line x1="60" y1="196" x2="104" y2="72" stroke="#d79a55" stroke-width="7"/>
+          <line x1="92" y1="206" x2="136" y2="82" stroke="#d79a55" stroke-width="7"/>
+          <g stroke="#e9b871" stroke-width="6"><line x1="69" y1="171" x2="101" y2="181"/><line x1="78" y1="146" x2="110" y2="156"/><line x1="87" y1="121" x2="119" y2="131"/><line x1="96" y1="96" x2="128" y2="106"/></g>
+        </g>
+        <!-- snake -->
+        <g class="hero-snake">
+          <path d="M184 52 C 220 96, 130 110, 170 150 S 150 200, 196 206" fill="none" stroke="#1d3322" stroke-width="22" stroke-linecap="round"/>
+          <path d="M184 52 C 220 96, 130 110, 170 150 S 150 200, 196 206" fill="none" stroke="#e5484d" stroke-width="15" stroke-linecap="round"/>
+          <path d="M184 52 C 220 96, 130 110, 170 150 S 150 200, 196 206" fill="none" stroke="#ffd166" stroke-width="15" stroke-dasharray="5 14"/>
+          <path d="M176 34 l-6 -8 M176 34 l2 -10" stroke="#e11d48" stroke-width="3" stroke-linecap="round"/>
+          <ellipse cx="182" cy="48" rx="17" ry="14" fill="#e5484d" stroke="#1d3322" stroke-width="3.5"/>
+          <circle cx="176" cy="44" r="4.5" fill="#fff"/><circle cx="188" cy="44" r="4.5" fill="#fff"/>
+          <circle cx="177" cy="43" r="2.2" fill="#111"/><circle cx="189" cy="43" r="2.2" fill="#111"/>
+        </g>
+        <!-- dice -->
+        <g transform="translate(30 30) rotate(-12)">
+          <rect width="40" height="40" rx="9" fill="#fff" stroke="#1d3322" stroke-width="3.5"/>
+          <circle cx="11" cy="11" r="4" fill="#e5484d"/><circle cx="20" cy="20" r="4" fill="#e5484d"/><circle cx="29" cy="29" r="4" fill="#e5484d"/>
+        </g>
+      </svg>
     </div>
 
     <!-- The ONE primary PLAY button (Requirement 3: หน้าแรกมีแค่ให้กดปุ่ม Play) -->
@@ -301,7 +327,7 @@
   <div class="max-w-lg w-full">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
-      <button id="btnBackToHome" class="w-11 h-11 rounded-2xl game-card flex items-center justify-center text-xl shadow hover:scale-105 active:scale-95 transition">
+      <button id="btnBackToHome" aria-label="ย้อนกลับ" class="w-11 h-11 rounded-2xl game-card flex items-center justify-center text-xl shadow hover:scale-105 active:scale-95 transition">
         ←
       </button>
       <h2 class="font-game text-2xl sm:text-3xl font-extrabold text-emerald-950">เลือกโหมดเกม</h2>
@@ -344,7 +370,7 @@
   <div class="game-card w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in">
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-game text-xl font-extrabold text-emerald-950">🤖 เล่นกับบอท</h3>
-      <button id="btnCloseBotModal" class="text-gray-400 hover:text-gray-700 text-2xl font-bold">✕</button>
+      <button id="btnCloseBotModal" aria-label="ปิด" class="text-gray-400 hover:text-gray-700 text-2xl font-bold">✕</button>
     </div>
 
     <div class="mb-4 text-left">
@@ -379,7 +405,7 @@
   <div class="max-w-md w-full">
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
-      <button id="btnBackToMode" class="w-10 h-10 rounded-2xl game-card flex items-center justify-center text-lg shadow hover:scale-105 active:scale-95 transition">
+      <button id="btnBackToMode" aria-label="ย้อนกลับ" class="w-10 h-10 rounded-2xl game-card flex items-center justify-center text-lg shadow hover:scale-105 active:scale-95 transition">
         ←
       </button>
       <h2 class="font-game text-2xl font-extrabold text-emerald-950">Multiplayer</h2>
@@ -517,14 +543,14 @@
 <!-- ========================================== -->
 <section id="screenGame" class="hidden relative z-10 flex-1 flex flex-col p-2 sm:p-4 max-w-7xl mx-auto w-full">
   <!-- Minimal Top Nav -->
-  <header class="flex items-center justify-between gap-2 mb-3 px-2">
+  <header class="flex items-center justify-between gap-2 mb-3 px-1 sm:px-2 pr-14">
     <!-- Left: Home & Park Guide Drawer Button -->
     <div class="flex items-center gap-2">
       <button id="btnGameHome" class="px-3.5 py-2 rounded-2xl game-card font-bold text-xs flex items-center gap-1.5 shadow-sm hover:bg-emerald-50 transition" title="กลับหน้าแรก">
-        <span>🏠</span> หน้าแรก
+        <span>🏠</span> <span class="hidden sm:inline">หน้าแรก</span>
       </button>
       <button id="btnOpenParkGuide" class="px-3.5 py-2 rounded-2xl game-card font-bold text-xs flex items-center gap-1.5 text-emerald-800 shadow-sm hover:bg-emerald-50 transition">
-        <span>📖</span> แผนที่จริงสวนเบญฯ
+        <span>📖</span> <span class="hidden sm:inline">แผนที่จริงสวนเบญฯ</span>
       </button>
     </div>
 
@@ -542,16 +568,16 @@
     <!-- Right: Passport Stamps & Reset -->
     <div class="flex items-center gap-2">
       <button id="btnPassport" class="px-3.5 py-2 rounded-2xl game-card font-bold text-xs flex items-center gap-1.5 text-amber-800 hover:bg-amber-50 transition" title="พาสปอร์ตตราประทับสวนเบญฯ">
-        <span>🎖️</span> ตราประทับ (<span id="passportCount">0/6</span>)
+        <span>🎖️</span> <span class="hidden sm:inline">ตราประทับ</span> <span id="passportCount">0/6</span>
       </button>
-      <button id="btnRestartGame" class="w-9 h-9 rounded-2xl game-card font-bold text-sm flex items-center justify-center hover:bg-emerald-50 transition" title="เริ่มเกมใหม่">
+      <button id="btnRestartGame" aria-label="เริ่มเกมใหม่" class="w-9 h-9 rounded-2xl game-card font-bold text-sm flex items-center justify-center hover:bg-emerald-50 transition" title="เริ่มเกมใหม่">
         ↺
       </button>
     </div>
   </header>
 
   <!-- Big Board Layout Grid: Board in Center/Left, Dynamic Game HUD on Right -->
-  <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
+  <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-3 sm:gap-4 items-start">
     
     <!-- BIG 10x10 Board Section -->
     <div class="flex flex-col items-center">
@@ -562,7 +588,7 @@
     </div>
 
     <!-- Right Side: Game Controls, Dice, Event Toast & Scoreboard -->
-    <aside class="flex flex-col gap-3 w-full">
+    <aside class="flex flex-col gap-3 w-full max-w-[820px] mx-auto lg:max-w-none lg:sticky lg:top-4">
       
       <!-- Current Turn & Dice Roll Card -->
       <div class="game-card p-4 rounded-3xl shadow-lg border-2 border-emerald-300">
@@ -634,7 +660,7 @@
           <p class="text-[11px] text-emerald-700 font-medium">สวนป่านิเวศน์ 450 ไร่ ใจกลางอโศก-คลองเตย</p>
         </div>
       </div>
-      <button id="btnCloseParkGuide" class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-900 font-bold flex items-center justify-center hover:bg-emerald-200">✕</button>
+      <button id="btnCloseParkGuide" aria-label="ปิด" class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-900 font-bold flex items-center justify-center hover:bg-emerald-200">✕</button>
     </div>
 
     <!-- Scrollable Real Benjakitti Highlights -->
@@ -652,7 +678,7 @@
         <span class="text-2xl">🎖️</span>
         <h3 class="font-game text-xl font-extrabold text-emerald-950">Benjakitti Passport</h3>
       </div>
-      <button id="btnClosePassport" class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-900 font-bold flex items-center justify-center hover:bg-emerald-200">✕</button>
+      <button id="btnClosePassport" aria-label="ปิด" class="w-9 h-9 rounded-full bg-emerald-100 text-emerald-900 font-bold flex items-center justify-center hover:bg-emerald-200">✕</button>
     </div>
 
     <p class="text-xs text-emerald-800/80 mb-4 font-medium">เดินผ่านแลนด์มาร์คสำคัญเพื่อสะสมตราประทับของสวนเบญฯ!</p>
@@ -837,6 +863,8 @@ class SoundFX {
   }
 }
 const sfx = new SoundFX();
+document.getElementById('heroTiles').innerHTML = Array.from({ length: 25 }, (_, i) =>
+  `<rect x="${(i % 5) * 39.2 + 1}" y="${Math.floor(i / 5) * 39.2 + 1}" width="37.2" height="37.2" rx="6" fill="${['#fffaf0', '#bbf7d0', '#fde68a', '#bae6fd'][(i + Math.floor(i / 5)) % 2 ? 0 : 1 + (i % 3)]}"/>`).join('');
 document.getElementById('btnSoundToggle').onclick = () => sfx.toggle();
 
 // Auto-start soft BGM on first user interaction anywhere
@@ -941,9 +969,12 @@ for (let row = 0; row < 10; row++) {
     const isSnake = !!SNAKES[n];
 
     const el = document.createElement('div');
-    el.className = 'tile';
+    el.className = 'tile' + ((row + col) % 2 ? ' tile-alt' : '') + (isLadder ? ' is-ladder' : isSnake ? ' is-snake' : n === 100 ? ' is-goal' : '');
     el.style.background = z.color;
     el.dataset.n = n;
+    el.setAttribute('role', 'button');
+    el.tabIndex = -1;
+    el.setAttribute('aria-label', `ช่อง ${n}${m ? ' ' + m.name : ''}${isLadder ? ' บันได' : isSnake ? ' งู' : ''}`);
 
     let badge = '';
     if (isLadder) badge = '<span class="tile-badge text-emerald-800">🪜</span>';
@@ -980,56 +1011,48 @@ function center(n) {
 function drawOverlay() {
   if (!tiles[1]) return;
   const w = tiles[1].offsetWidth;
+  if (!w) return; // board hidden (0 size): drawing now would emit NaN coordinates
   let s = '';
 
-  // Ladders: Bamboo golden rails with rung highlights
+  // Ladders: wooden rails with outlined rungs
   for (const [a, [b]] of Object.entries(LADDERS)) {
     const [x1, y1] = center(a), [x2, y2] = center(b);
     const len = Math.hypot(x2 - x1, y2 - y1);
-    const nx = -(y2 - y1) / len * w * 0.17;
-    const ny = (x2 - x1) / len * w * 0.17;
-
-    // Shadow
-    s += `<g stroke="rgba(0,0,0,0.22)" stroke-width="${w * 0.085}" stroke-linecap="round">
-      <line x1="${x1+nx+2}" y1="${y1+ny+3}" x2="${x2+nx+2}" y2="${y2+ny+3}"/>
-      <line x1="${x1-nx+2}" y1="${y1-ny+3}" x2="${x2-nx+2}" y2="${y2-ny+3}"/>
-    </g>`;
-    // Main Bamboo Rails
-    s += `<g stroke="#b45309" stroke-width="${w * 0.075}" stroke-linecap="round">
-      <line x1="${x1+nx}" y1="${y1+ny}" x2="${x2+nx}" y2="${y2+ny}"/>
-      <line x1="${x1-nx}" y1="${y1-ny}" x2="${x2-nx}" y2="${y2-ny}"/>`;
-    
-    // Rungs
-    const rungs = Math.max(2, Math.floor(len / (w * 0.42)));
-    for (let i = 1; i < rungs; i++) {
-      const t = i / rungs;
-      const cx = x1 + (x2 - x1) * t, cy = y1 + (y2 - y1) * t;
-      s += `<line x1="${cx+nx}" y1="${cy+ny}" x2="${cx-nx}" y2="${cy-ny}" stroke="#f59e0b" stroke-width="${w * 0.06}"/>`;
+    const nx = -(y2 - y1) / len * w * 0.2, ny = (x2 - x1) / len * w * 0.2;
+    const rail = (ox, oy, col, sw) => `<line x1="${x1+ox}" y1="${y1+oy}" x2="${x2+ox}" y2="${y2+oy}" stroke="${col}" stroke-width="${sw}" stroke-linecap="round"/>`;
+    let rungs = '';
+    const count = Math.max(2, Math.floor(len / (w * 0.38)));
+    for (let i = 1; i < count; i++) {
+      const t = i / count, cx = x1 + (x2 - x1) * t, cy = y1 + (y2 - y1) * t;
+      rungs += `<line x1="${cx+nx}" y1="${cy+ny}" x2="${cx-nx}" y2="${cy-ny}"/>`;
     }
-    s += '</g>';
+    s += `<g opacity="0.25" transform="translate(2 4)">${rail(nx, ny, '#000', w*0.13)}${rail(-nx, -ny, '#000', w*0.13)}</g>
+      <g stroke="#5b3211" stroke-width="${w*0.11}" stroke-linecap="round">${rungs}</g>
+      <g stroke="#e9b871" stroke-width="${w*0.06}" stroke-linecap="round">${rungs}</g>
+      ${rail(nx, ny, '#5b3211', w*0.13)}${rail(-nx, -ny, '#5b3211', w*0.13)}
+      ${rail(nx, ny, '#c7853e', w*0.075)}${rail(-nx, -ny, '#c7853e', w*0.075)}`;
   }
 
-  // Snakes: Playful winding green snakes with scales, cute eyes and red tongue
-  for (const [a, [b]] of Object.entries(SNAKES)) {
+  // Snakes: banded bodies in varied colours, head on the start tile, tail on the landing tile
+  const SKINS = [['#e5484d', '#ffd166'], ['#7c3aed', '#c4f1be'], ['#f97316', '#1d3322'], ['#0ea5e9', '#fef08a'], ['#db2777', '#bbf7d0'], ['#16a34a', '#facc15']];
+  Object.entries(SNAKES).forEach(([a, [b]], k) => {
     const [x1, y1] = center(a), [x2, y2] = center(b);
-    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-    const d = `M${x1},${y1} Q${mx + w * 1.15},${(y1 + my) / 2} ${mx},${my} T${x2},${y2}`;
-
-    // Soft Shadow
-    s += `<path d="${d}" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="${w * 0.22}" stroke-linecap="round" transform="translate(2, 4)"/>`;
-    // Body & Scales
-    s += `<path d="${d}" fill="none" stroke="#15803d" stroke-width="${w * 0.19}" stroke-linecap="round"/>
-          <path d="${d}" fill="none" stroke="#bef264" stroke-width="${w * 0.09}" stroke-linecap="round" stroke-dasharray="${w * 0.16} ${w * 0.12}"/>
-          <!-- Head -->
-          <circle cx="${x1}" cy="${y1}" r="${w * 0.17}" fill="#166534"/>
-          <!-- Eyes -->
-          <circle cx="${x1 - w * 0.06}" cy="${y1 - w * 0.04}" r="${w * 0.045}" fill="#ffffff"/>
-          <circle cx="${x1 + w * 0.06}" cy="${y1 - w * 0.04}" r="${w * 0.045}" fill="#ffffff"/>
-          <circle cx="${x1 - w * 0.06}" cy="${y1 - w * 0.04}" r="${w * 0.025}" fill="#0f172a"/>
-          <circle cx="${x1 + w * 0.06}" cy="${y1 - w * 0.04}" r="${w * 0.025}" fill="#0f172a"/>
-          <!-- Tongue -->
-          <path d="M${x1},${y1 - w * 0.14} L${x1},${y1 - w * 0.24}" stroke="#ef4444" stroke-width="${w * 0.035}" stroke-linecap="round"/>`;
-  }
+    const [body, band] = SKINS[k % SKINS.length];
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
+    const px = -dy / len * w * 0.9, py = dx / len * w * 0.9; // perpendicular wiggle
+    const d = `M${x1},${y1} C${x1 + dx*0.3 + px},${y1 + dy*0.3 + py} ${x1 + dx*0.7 - px},${y1 + dy*0.7 - py} ${x2},${y2}`;
+    const ang = Math.atan2(dy, dx) * 180 / Math.PI + 180; // head faces away from the tail
+    s += `<path d="${d}" fill="none" stroke="rgba(0,0,0,.22)" stroke-width="${w*0.3}" stroke-linecap="round" transform="translate(2 4)"/>
+      <path d="${d}" fill="none" stroke="#1d3322" stroke-width="${w*0.3}" stroke-linecap="round"/>
+      <path d="${d}" fill="none" stroke="${body}" stroke-width="${w*0.22}" stroke-linecap="round"/>
+      <path d="${d}" fill="none" stroke="${band}" stroke-width="${w*0.22}" stroke-dasharray="${w*0.07} ${w*0.24}"/>
+      <g transform="translate(${x1} ${y1}) rotate(${ang})">
+        <path d="M${w*0.34},0 l${w*0.14},${-w*0.06} M${w*0.34},0 l${w*0.14},${w*0.06} M${w*0.18},0 L${w*0.36},0" stroke="#e11d48" stroke-width="${w*0.035}" stroke-linecap="round"/>
+        <ellipse rx="${w*0.24}" ry="${w*0.19}" fill="${body}" stroke="#1d3322" stroke-width="${w*0.04}"/>
+        <circle cx="${w*0.06}" cy="${-w*0.08}" r="${w*0.06}" fill="#fff"/><circle cx="${w*0.06}" cy="${w*0.08}" r="${w*0.06}" fill="#fff"/>
+        <circle cx="${w*0.08}" cy="${-w*0.08}" r="${w*0.03}" fill="#111"/><circle cx="${w*0.08}" cy="${w*0.08}" r="${w*0.03}" fill="#111"/>
+      </g>`;
+  });
   overlay.innerHTML = s;
 }
 
@@ -1381,6 +1404,16 @@ document.getElementById('btnClosePassport').onclick = () => {
   document.getElementById('modalPassport').classList.add('hidden');
 };
 
+// Dismiss info modals with Esc or a backdrop tap (win modal stays: it holds the post-game choice)
+const DISMISSABLE = ['modalParkGuide', 'modalPassport', 'modalBotSetup'];
+DISMISSABLE.forEach(id => {
+  const m = document.getElementById(id);
+  m.addEventListener('click', e => { if (e.target === m) m.classList.add('hidden'); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') DISMISSABLE.forEach(id => document.getElementById(id).classList.add('hidden'));
+});
+
 // ==========================================
 // 7. KAHOOT-STYLE REALTIME NETWORKING
 // ==========================================
@@ -1586,7 +1619,7 @@ function showScreen(name) {
   screenMode.classList.toggle('hidden', name !== 'mode');
   screenMulti.classList.toggle('hidden', name !== 'multi');
   screenGame.classList.toggle('hidden', name !== 'game');
-  document.getElementById('modalWin').classList.add('hidden');
+  ['modalWin', 'modalParkGuide', 'modalPassport', 'modalBotSetup'].forEach(id => document.getElementById(id).classList.add('hidden'));
 }
 
 // Screen 1: Play -> Screen 2: Mode
