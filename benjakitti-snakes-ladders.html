@@ -1071,6 +1071,23 @@ async function animateDiceRoll(v) {
 // 5. GAME STATE & ENGINE
 // ==========================================
 let gameState = null;
+const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`); // names come from other players
+
+// Online AFK auto-roll: everyone shows the countdown, only the host rolls (one authority = no double rolls)
+const AFK_SECONDS = 10;
+let rollSeq = 0, turnKey = -1, turnStart = Date.now();
+setInterval(() => {
+  const online = gameState && (gameState.mode === 'host' || gameState.mode === 'guest');
+  if (!online || gameState.winner != null || isBusy) return;
+  const left = Math.max(0, Math.ceil(AFK_SECONDS - (Date.now() - turnStart) / 1000));
+  document.getElementById('turnStatusBadge').textContent = `${isMyTurn() ? 'ทอยเต๋าได้เลย 🎲' : 'กำลังรอ...'} ⏱ ${left}s`;
+  if (left === 0 && gameState.mode === 'host') {
+    // shortcut: a guest roll landing at the same instant can double-roll, fine at 10s granularity
+    const v = 1 + Math.floor(Math.random() * 6);
+    netSession.broadcastRoll(v);
+    handleRoll(v);
+  }
+}, 250);
 let isBusy = false;
 const pawns = [];
 let botTimer = null;
@@ -1155,10 +1172,10 @@ function updateHUD() {
     const pct = Math.min(100, pl.pos);
     return `
       <div class="flex items-center gap-2 p-2 rounded-xl transition ${isCurrent ? 'bg-amber-100/90 ring-2 ring-amber-400' : 'bg-emerald-50/70'}">
-        <span class="text-xl">${pl.avatar}</span>
+        <span class="text-xl">${esc(pl.avatar)}</span>
         <div class="flex-1 min-w-0">
           <div class="flex justify-between items-center text-xs font-bold mb-1">
-            <span class="truncate text-emerald-950">${pl.name}</span>
+            <span class="truncate text-emerald-950">${esc(pl.name)}</span>
             <span class="text-emerald-700 font-game">${pl.pos}/100</span>
           </div>
           <div class="w-full h-2 rounded-full bg-emerald-200 overflow-hidden">
@@ -1168,6 +1185,9 @@ function updateHUD() {
       </div>
     `;
   }).join('');
+
+  // New roll opportunity (turn passed or rolled a 6): restart the AFK countdown
+  if (!isBusy && turnKey !== rollSeq) { turnKey = rollSeq; turnStart = Date.now(); }
 
   // Bot Turn Auto-Roll
   if (live && cur.bot && !isBusy && !botTimer) {
@@ -1193,6 +1213,7 @@ function isMyTurn() {
 async function handleRoll(v) {
   if (isBusy || !gameState || gameState.winner != null) return;
   isBusy = true;
+  rollSeq++;
   updateHUD();
 
   const turnIdx = gameState.turn;
@@ -1688,7 +1709,6 @@ function renderHostLobbyPlayers() {
   const minWarning = document.getElementById('hostMinWarning');
 
   countBadge.textContent = `${netSession.players.length}/4`;
-  const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`); // names come from other players
   const html = netSession.players.map((p, i) => `
     <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white border border-emerald-100 shadow-sm">
       <span class="text-2xl">${esc(p.avatar)}</span>
@@ -1818,7 +1838,7 @@ function initGameSession(playersList, mode) {
     turn: 0,
     winner: null
   };
-  isBusy = false;
+  isBusy = false; turnKey = -1;
   readyIds.clear();
   unlockedStamps.clear();
   document.getElementById('passportCount').textContent = `0/${PASSPORT_STAMPS.length}`;
@@ -1880,7 +1900,7 @@ function resetGame() {
   gameState.players.forEach(p => p.pos = 0);
   gameState.turn = 0;
   gameState.winner = null;
-  isBusy = false;
+  isBusy = false; turnKey = -1;
   unlockedStamps.clear();
   document.getElementById('passportCount').textContent = `0/${PASSPORT_STAMPS.length}`;
   renderPawns();
