@@ -504,6 +504,7 @@
         <div id="guestMyName" class="font-game text-lg font-extrabold text-emerald-900">Runner</div>
         <p class="text-xs text-emerald-600 font-bold mt-2 animate-pulse">⏳ กำลังรอ Host สั่งเริ่มเกม...</p>
       </div>
+      <div id="guestLobbyList" class="grid gap-2 mb-4 text-left"></div>
       <button id="btnLeaveLobby" class="text-xs text-rose-600 font-bold underline hover:text-rose-800">
         ออกจากห้อง
       </button>
@@ -1449,6 +1450,13 @@ class NetworkSession {
         }
         const myIdx = this.players.findIndex(p => p.id === this.myId);
         if (myIdx >= 0) this.mySeat = myIdx;
+        renderHostLobbyPlayers();
+      } else if (data.type === 'KICK' && data.id === this.myId) {
+        // shortcut: any client on the channel could forge KICK (no auth), fine for a casual park game
+        this.leave();
+        panelGuestWaiting.classList.add('hidden');
+        panelJoin.classList.remove('hidden');
+        document.getElementById('joinStatusMsg').textContent = 'คุณถูก Host เชิญออกจากห้อง';
       } else if (data.type === 'START') {
         if (this.joinRetryTimer) {
           clearInterval(this.joinRetryTimer);
@@ -1458,6 +1466,10 @@ class NetworkSession {
         if (myIdx >= 0) this.mySeat = myIdx;
         startMultiplayerGame(data.players, 'guest');
       }
+    }
+
+    if (data.type === 'RESTART' && gameState && (gameState.mode === 'host' || gameState.mode === 'guest')) {
+      resetGame();
     }
 
     if (data.type === 'ROLL' && gameState && gameState.winner == null) {
@@ -1672,20 +1684,34 @@ function renderHostLobbyPlayers() {
   const minWarning = document.getElementById('hostMinWarning');
 
   countBadge.textContent = `${netSession.players.length}/4`;
-  listEl.innerHTML = netSession.players.map((p, i) => `
+  const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`); // names come from other players
+  const html = netSession.players.map((p, i) => `
     <div class="flex items-center gap-2.5 p-2 rounded-xl bg-white border border-emerald-100 shadow-sm">
-      <span class="text-2xl">${p.avatar}</span>
-      <span class="font-bold text-sm text-emerald-950 flex-1 truncate">${p.name}</span>
+      <span class="text-2xl">${esc(p.avatar)}</span>
+      <span class="font-bold text-sm text-emerald-950 flex-1 truncate">${esc(p.name)}${p.id === netSession.myId ? ' (คุณ)' : ''}</span>
       <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${i === 0 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
         ${i === 0 ? '👑 Host' : 'ผู้เล่น'}
       </span>
+      ${netSession.isHost && i > 0 ? `<button type="button" data-kick="${esc(p.id)}" aria-label="เชิญ ${esc(p.name)} ออก" class="text-xs font-bold text-rose-600 hover:text-rose-800 px-2">✕</button>` : ''}
     </div>
   `).join('');
+  listEl.innerHTML = html;
+  document.getElementById('guestLobbyList').innerHTML = html;
 
   const canStart = netSession.players.length >= 2;
   btnStart.disabled = !canStart;
   minWarning.classList.toggle('hidden', canStart);
 }
+
+document.getElementById('lobbyPlayersList').onclick = e => {
+  const id = e.target.closest('[data-kick]')?.dataset.kick;
+  if (!id || !netSession.isHost) return;
+  sfx.playPop();
+  netSession.players = netSession.players.filter(p => p.id !== id).map((p, i) => ({ ...p, seat: i }));
+  netSession.send({ type: 'KICK', id });
+  netSession.broadcastRoster();
+  renderHostLobbyPlayers();
+};
 
 document.getElementById('btnHostStartGame').onclick = () => {
   sfx.playPop();
@@ -1821,34 +1847,28 @@ document.getElementById('btnGameHome').onclick = () => {
   }
 };
 
-document.getElementById('btnRestartGame').onclick = () => {
-  sfx.playPop();
-  if (gameState) {
-    gameState.players.forEach(p => p.pos = 0);
-    gameState.turn = 0;
-    gameState.winner = null;
-    isBusy = false;
-    unlockedStamps.clear();
-    document.getElementById('passportCount').textContent = `0/${PASSPORT_STAMPS.length}`;
-    renderPawns();
-    updateHUD();
-    document.getElementById('modalWin').classList.add('hidden');
-    showToast('รีเซ็ตเกมใหม่แล้ว! ออกตัวจากจุดสตาร์ท', '↺', 'ประตูรัชดาภิเษก');
-  }
-};
-
-document.getElementById('btnWinPlayAgain').onclick = () => {
-  sfx.playPop();
+function resetGame() {
+  if (!gameState) return;
+  gameState.players.forEach(p => p.pos = 0);
+  gameState.turn = 0;
+  gameState.winner = null;
+  isBusy = false;
+  unlockedStamps.clear();
+  document.getElementById('passportCount').textContent = `0/${PASSPORT_STAMPS.length}`;
+  renderPawns();
+  updateHUD();
   document.getElementById('modalWin').classList.add('hidden');
-  if (gameState) {
-    gameState.players.forEach(p => p.pos = 0);
-    gameState.turn = 0;
-    gameState.winner = null;
-    isBusy = false;
-    renderPawns();
-    updateHUD();
-  }
-};
+  showToast('รีเซ็ตเกมใหม่แล้ว! ออกตัวจากจุดสตาร์ท', '↺', 'ประตูรัชดาภิเษก');
+}
+
+function restartAndSync() {
+  sfx.playPop();
+  if (gameState && (gameState.mode === 'host' || gameState.mode === 'guest')) netSession.send({ type: 'RESTART' });
+  resetGame();
+}
+
+document.getElementById('btnRestartGame').onclick = restartAndSync;
+document.getElementById('btnWinPlayAgain').onclick = restartAndSync;
 
 document.getElementById('btnWinHome').onclick = () => {
   sfx.playPop();
