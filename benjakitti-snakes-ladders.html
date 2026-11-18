@@ -1818,6 +1818,7 @@ function initGameSession(playersList, mode) {
   unlockedStamps.clear();
   document.getElementById('passportCount').textContent = `0/${PASSPORT_STAMPS.length}`;
 
+  document.getElementById('btnRestartGame').classList.toggle('hidden', mode === 'host' || mode === 'guest');
   const pinBadge = document.getElementById('gameRoomPinBadge');
   if (mode === 'host' || mode === 'guest') {
     pinBadge.classList.remove('hidden');
