@@ -58,7 +58,7 @@
       <div id="localForm">
         <label class="text-sm font-medium">Players
           <select id="count" class="ml-2 rounded-lg border-emerald-200 border px-2 py-1">
-            <option>2</option><option>3</option><option>4</option>
+            <option value="1">1 (vs bot)</option><option selected>2</option><option>3</option><option>4</option>
           </select>
         </label>
         <div id="names" class="grid gap-2 mt-3"></div>
@@ -294,13 +294,18 @@ function renderPanel() {
       <span class="text-xs text-emerald-800">${pl.pos ? 'Tile ' + pl.pos : 'Start'}</span>
     </div>`).join('');
   pawns.forEach((p, i) => p.classList.toggle('active', i === state.turn && live));
-  const cur = state.players[state.turn], mine = !room || room.seat === state.turn;
-  document.getElementById('turnText').textContent = !live ? 'Game over' : mine ? `${cur.name}, your turn!` : `Waiting for ${cur.name}…`;
+  const cur = state.players[state.turn], mine = !cur.bot && (!room || room.seat === state.turn);
+  document.getElementById('turnText').textContent = !live ? 'Game over' : mine ? `${cur.name}, your turn!` : cur.bot ? `${cur.name} is rolling…` : `Waiting for ${cur.name}…`;
   document.getElementById('roll').disabled = busy || !live || !mine;
+  if (live && cur.bot && !busy && !botTimer) botTimer = setTimeout(() => {
+    botTimer = null;
+    if (state && state.winner == null && !busy && state.players[state.turn].bot) applyRoll(1 + Math.floor(Math.random() * 6));
+  }, 800);
 }
 
-function beginGame(names) {
-  state = { players: names.map(name => ({ name, pos: 0 })), turn: 0, winner: null };
+let botTimer = null;
+function beginGame(names, withBot = false) {
+  state = { players: names.map((name, i) => ({ name, pos: 0, bot: withBot && i === names.length - 1 })), turn: 0, winner: null };
   busy = false;
   logEl.innerHTML = '';
   document.getElementById('lobby').classList.add('hidden');
@@ -352,7 +357,7 @@ function win(i) {
 
 document.getElementById('roll').onclick = async () => {
   if (busy || !state || state.winner != null) return;
-  if (room && room.seat !== state.turn) return;
+  if ((room && room.seat !== state.turn) || state.players[state.turn].bot) return;
   if (!room) return applyRoll(1 + Math.floor(Math.random() * 6));
   busy = true; renderPanel();
   const { data, error } = await sb.rpc('roll_dice', { p_room: room.id }); // server rolls; result also arrives via realtime
@@ -360,7 +365,7 @@ document.getElementById('roll').onclick = async () => {
   queueMove(data);
 };
 document.getElementById('again').onclick = () => {
-  if (!room) return beginGame(state.players.map(p => p.name));
+  if (!room) return beginGame(state.players.map(p => p.name), state.players.some(p => p.bot));
   leaveRoom();
 };
 
@@ -373,8 +378,11 @@ function renderNames() {
      <input maxlength="14" value="${esc(prev[i] || 'Player ' + (i + 1))}" aria-label="Player ${i + 1} name" class="flex-1 min-w-0 rounded-lg border border-emerald-200 px-3 py-1.5"></div>`).join('');
 }
 countEl.onchange = renderNames; renderNames();
-document.getElementById('startLocal').onclick = () =>
-  beginGame([...namesEl.querySelectorAll('input')].map((inp, i) => inp.value.trim() || 'Player ' + (i + 1)));
+document.getElementById('startLocal').onclick = () => {
+  const names = [...namesEl.querySelectorAll('input')].map((inp, i) => inp.value.trim() || 'Player ' + (i + 1));
+  const vsBot = names.length === 1;
+  beginGame(vsBot ? [...names, 'Ranger Bot 🤖'] : names, vsBot);
+};
 
 document.querySelectorAll('.mode-btn').forEach(b => b.onclick = () => {
   document.querySelectorAll('.mode-btn').forEach(x => {
