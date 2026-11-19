@@ -2279,8 +2279,8 @@ function restoreGame(state, mode) {
   const REV = EN.map(([t, e]) => [e, t]).sort((a, b) => b[0].length - a[0].length);
   const THAI = /[฀-๿]/;
   const ATTRS = ['title', 'aria-label', 'placeholder'];
-  let lang = 'th';
-  try { lang = localStorage.getItem('lang') === 'en' ? 'en' : 'th'; } catch {}
+  let lang = 'en'; // English by default; Thai only if the player picked it
+  try { lang = localStorage.getItem('lang') === 'th' ? 'th' : 'en'; } catch {}
 
   const swap = (s, dict) => { for (const [a, b] of dict) if (s.includes(a)) s = s.split(a).join(b); return s; };
   const tx = s => (lang === 'en' && THAI.test(s)) ? swap(s, EN) : s;
