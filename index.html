@@ -258,6 +258,39 @@
   .stamp-badge.unlocked { filter: none; opacity: 1; transform: rotate(-3deg) scale(1.04); }
   .stamp-badge.locked { filter: grayscale(1); opacity: .45; }
 
+  /* Special Skill Tiles & Pawn Shield */
+  .tile.is-special {
+    box-shadow: inset 0 0 0 2px rgba(245, 158, 11, .9), 0 2px 6px rgba(245, 158, 11, .35);
+    background-image: linear-gradient(135deg, rgba(254, 240, 138, .85), rgba(253, 224, 71, .95)) !important;
+    animation: special-pulse 2.2s ease-in-out infinite alternate;
+  }
+  @keyframes special-pulse {
+    0% { filter: brightness(1); }
+    100% { filter: brightness(1.08) drop-shadow(0 0 3px rgba(245, 158, 11, 0.5)); }
+  }
+  .pawn-shield {
+    position: absolute;
+    top: -9px;
+    right: -9px;
+    width: 20px;
+    height: 20px;
+    background: #ffffff;
+    border-radius: 50%;
+    border: 2px solid #2563eb;
+    box-shadow: 0 2px 5px rgba(0,0,0,.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    line-height: 1;
+    pointer-events: none;
+    animation: shield-float 1.8s ease-in-out infinite alternate;
+  }
+  @keyframes shield-float {
+    0% { transform: scale(1) translateY(0); }
+    100% { transform: scale(1.15) translateY(-2px); }
+  }
+
   /* Desktop: keep the whole board inside the viewport */
   @media (min-width: 1024px) {
     #board-outer { max-width: min(820px, calc((100svh - 100px) / 1.1)); }
@@ -724,6 +757,59 @@
   </div>
 </div>
 
+<!-- ======================================================== -->
+<!-- MODAL: การ์ดสกิลพิเศษ (Special Skill Card Popup)         -->
+<!-- ======================================================== -->
+<div id="modalSkillCard" class="hidden fixed inset-0 z-50 bg-emerald-950/80 backdrop-blur-md flex items-center justify-center p-4">
+  <div class="game-card w-full max-w-sm rounded-[32px] p-6 text-center shadow-2xl border-4 border-amber-400 animate-in">
+    <!-- Header Badge -->
+    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-extrabold text-xs uppercase tracking-wider mb-3 shadow-sm border border-amber-300">
+      <span class="animate-pulse">⚡</span> กล่องสุ่มสกิลพิเศษ! <span class="animate-pulse">🎁</span>
+    </div>
+
+    <!-- Big Skill Icon with Glowing Frame -->
+    <div id="skillCardIconBox" class="w-24 h-24 mx-auto mb-3 rounded-3xl bg-gradient-to-tr from-amber-200 to-yellow-50 flex items-center justify-center text-5xl shadow-lg border-2 border-amber-300">
+      <span id="skillCardIcon" class="animate-bounce">🐍</span>
+    </div>
+
+    <!-- Category / Type Badge -->
+    <div id="skillCardTypeBadge" class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-extrabold mb-1 bg-rose-100 text-rose-800 border border-rose-200">
+      🎯 สายป่วนเพื่อน
+    </div>
+
+    <!-- Skill Name -->
+    <h3 id="skillCardName" class="font-game text-2xl font-extrabold text-emerald-950 mt-1">งูเรียกเพื่อน</h3>
+    
+    <!-- Skill Description (1 line maximum) -->
+    <p id="skillCardDesc" class="text-xs text-emerald-800 mt-1.5 font-bold leading-normal min-h-[32px] px-2">
+      วาร์ปผู้เล่นอื่น 1 คน ไปตกช่องหัวงูที่ใกล้ที่สุด
+    </p>
+
+    <!-- Target Selection Area (for Snake Call, Swap, Lake Gust) -->
+    <div id="skillTargetArea" class="hidden mt-4 text-left">
+      <p id="skillTargetPrompt" class="text-xs font-extrabold text-emerald-900 mb-2 flex items-center gap-1">
+        <span>🎯</span> เลือกผู้เล่นเป้าหมาย:
+      </p>
+      <div id="skillTargetList" class="grid gap-2 max-h-48 overflow-y-auto pr-1"></div>
+      <p id="skillWaitingMsg" class="hidden text-xs text-amber-700 font-bold text-center mt-2 animate-pulse">
+        ⏳ กำลังรอผู้เล่นเลือกเป้าหมาย...
+      </p>
+    </div>
+
+    <!-- Self-Buff Action Button (for Skywalk Dash, Bike Sprint, Tree Shield) -->
+    <div id="skillSelfArea" class="mt-5">
+      <button id="btnUseSkill" class="w-full py-4 rounded-2xl btn-3d btn-green text-white font-game text-lg font-bold flex items-center justify-center gap-2 shadow-lg">
+        <span>⚡</span> ใช้งานสกิลเลย!
+      </button>
+    </div>
+
+    <!-- Bot Auto-use Notice -->
+    <p id="skillBotNotice" class="hidden text-[11px] text-emerald-700 font-bold mt-2 animate-pulse">
+      🤖 บอทกำลังเลือกเป้าหมาย...
+    </p>
+  </div>
+</div>
+
 <!-- ========================================== -->
 <!-- JAVASCRIPT LOGIC                            -->
 <!-- ========================================== -->
@@ -874,6 +960,21 @@ class SoundFX {
       setTimeout(() => this.playTone(f, 'triangle', 0.35, 0.25), i * 110);
     });
   }
+  playSkillDraw() {
+    [440, 554.37, 659.25, 880].forEach((f, i) => {
+      setTimeout(() => this.playTone(f, 'triangle', 0.15, 0.2), i * 65);
+    });
+  }
+  playShield() {
+    [320, 480, 640].forEach((f, i) => {
+      setTimeout(() => this.playTone(f, 'sine', 0.25, 0.22), i * 55);
+    });
+  }
+  playGust() {
+    [420, 330, 250, 180].forEach((f, i) => {
+      setTimeout(() => this.playTone(f, 'sawtooth', 0.1, 0.09), i * 65);
+    });
+  }
 }
 const sfx = new SoundFX();
 document.getElementById('heroTiles').innerHTML = Array.from({ length: 25 }, (_, i) =>
@@ -964,6 +1065,80 @@ const PASSPORT_STAMPS = [
 ];
 let unlockedStamps = new Set();
 
+// Special Skill Tiles (14 tiles = 14% of the board)
+const SPECIAL_TILES = new Set([9, 16, 23, 30, 36, 44, 52, 60, 67, 73, 80, 85, 90, 95]);
+
+// 6 Special Skills across 3 Categories: Curse (ป่วน), Buff (เดินเร็ว/ทอยซ้ำ), Defense (ป้องกัน)
+const SKILLS = {
+  snake_call: {
+    id: 'snake_call',
+    name: 'งูเรียกเพื่อน',
+    enName: 'Snake Call',
+    icon: '🐍',
+    type: 'curse',
+    typeLabel: '🎯 สายป่วนเพื่อน',
+    typeColor: 'bg-rose-100 text-rose-800 border-rose-300',
+    desc: 'เลือกผู้เล่นอื่น 1 คน วาร์ปไปตกช่องหัวงูที่ใกล้ที่สุด',
+    needsTarget: true,
+  },
+  swap: {
+    id: 'swap',
+    name: 'สลับร่าง',
+    enName: 'Swap',
+    icon: '🔄',
+    type: 'trick',
+    typeLabel: '🎯 สายป่วนเพื่อน',
+    typeColor: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+    desc: 'เลือกสลับตำแหน่งตัวเดินของเรากับผู้เล่นอื่น 1 คน',
+    needsTarget: true,
+  },
+  skywalk_dash: {
+    id: 'skywalk_dash',
+    name: 'ทางลัดสกายวอล์ค',
+    enName: 'Skywalk Dash',
+    icon: '🌉',
+    type: 'buff',
+    typeLabel: '⚡ สายเดินเร็ว',
+    typeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    desc: 'เดินพุ่งไปข้างหน้าทันที 4 ช่อง',
+    needsTarget: false,
+  },
+  bike_sprint: {
+    id: 'bike_sprint',
+    name: 'ปั่นจักรยานรอบสวน',
+    enName: 'Bike Sprint',
+    icon: '🚲',
+    type: 'buff',
+    typeLabel: '⚡ สายเดินเร็ว',
+    typeColor: 'bg-amber-100 text-amber-800 border-amber-300',
+    desc: 'ได้สิทธิ์ทอยลูกเต๋าซ้ำอีก 1 รอบทันที',
+    needsTarget: false,
+  },
+  tree_shield: {
+    id: 'tree_shield',
+    name: 'ร่มเงาต้นไม้',
+    enName: 'Tree Shield',
+    icon: '🛡️',
+    type: 'defense',
+    typeLabel: '🛡️ สายป้องกัน',
+    typeColor: 'bg-blue-100 text-blue-800 border-blue-300',
+    desc: 'ได้รับโล่ป้องกันการโดนงูกัดหรือโดนสกิลแกล้ง 1 ครั้ง',
+    needsTarget: false,
+  },
+  lake_gust: {
+    id: 'lake_gust',
+    name: 'ลมพัดถอยหลัง',
+    enName: 'Lake Gust',
+    icon: '💨',
+    type: 'curse',
+    typeLabel: '🎯 สายป่วนเพื่อน',
+    typeColor: 'bg-cyan-100 text-cyan-800 border-cyan-300',
+    desc: 'เลือกผู้เล่นอื่น 1 คน ให้เดินถอยหลัง 3 ช่อง',
+    needsTarget: true,
+  }
+};
+const SKILL_KEYS = Object.keys(SKILLS);
+
 const zoneOf = n => ZONES.find(z => n <= z.to) || ZONES[0];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -980,27 +1155,32 @@ for (let row = 0; row < 10; row++) {
     const m = MILESTONES[n];
     const isLadder = !!LADDERS[n];
     const isSnake = !!SNAKES[n];
+    const isSpecial = SPECIAL_TILES.has(n);
 
     const el = document.createElement('div');
-    el.className = 'tile' + ((row + col) % 2 ? ' tile-alt' : '') + (isLadder ? ' is-ladder' : isSnake ? ' is-snake' : n === 100 ? ' is-goal' : '');
-    el.style.background = z.color;
+    el.className = 'tile' + ((row + col) % 2 ? ' tile-alt' : '') + (isLadder ? ' is-ladder' : isSnake ? ' is-snake' : isSpecial ? ' is-special' : n === 100 ? ' is-goal' : '');
+    el.style.background = isSpecial ? 'linear-gradient(135deg, #fef08a, #fde047)' : z.color;
     el.dataset.n = n;
     el.setAttribute('role', 'button');
     el.tabIndex = -1;
-    el.setAttribute('aria-label', `ช่อง ${n}${m ? ' ' + m.name : ''}${isLadder ? ' บันได' : isSnake ? ' งู' : ''}`);
+    el.setAttribute('aria-label', `ช่อง ${n}${m ? ' ' + m.name : ''}${isLadder ? ' บันได' : isSnake ? ' งู' : isSpecial ? ' ช่องพิเศษสุ่มสกิล' : ''}`);
 
     let badge = '';
     if (isLadder) badge = '<span class="tile-badge text-emerald-800">🪜</span>';
     else if (isSnake) badge = '<span class="tile-badge text-rose-800">🐍</span>';
+    else if (isSpecial) badge = '<span class="tile-badge text-amber-800 font-extrabold animate-pulse">⚡</span>';
     else if (n === 100) badge = '<span class="tile-badge text-amber-800">🏆</span>';
+
+    const tileIcon = m ? m.icon : (isSpecial ? '⚡' : '');
+    const tileName = m ? m.name : (isSpecial ? 'ช่องสุ่มสกิล' : '');
 
     el.innerHTML = `
       <div class="tile-header">
         <span class="tile-num">${n}</span>
         ${badge}
       </div>
-      <div class="tile-icon">${m ? m.icon : ''}</div>
-      <div class="tile-name">${m ? m.name : ''}</div>
+      <div class="tile-icon">${tileIcon}</div>
+      <div class="tile-name">${tileName}</div>
     `;
 
     // Click on tile -> open landmark info drawer
@@ -1131,8 +1311,14 @@ setInterval(() => {
   document.getElementById('turnStatusBadge').textContent = `${isMyTurn() ? 'ทอยเต๋าได้เลย 🎲' : 'กำลังรอ...'} ⏱ ${left}s`;
   if (left === 0 && gameState.mode === 'host') {
     const v = 1 + Math.floor(Math.random() * 6);
-    netSession.broadcastRoll(v);
-    handleRoll(v);
+    const pl = gameState.players[gameState.turn];
+    const target = Math.min(100, pl.pos + v);
+    let skillId = null;
+    if (SPECIAL_TILES.has(target)) {
+      skillId = SKILL_KEYS[Math.floor(Math.random() * SKILL_KEYS.length)];
+    }
+    netSession.broadcastRoll(v, skillId);
+    handleRoll(v, skillId);
   }
 }, 250);
 let isBusy = false;
@@ -1154,6 +1340,26 @@ function placePawn(i, n) {
   p.style.top = (y + off[1] * w * 0.18) + 'px';
 }
 
+function updatePawnShields() {
+  if (!gameState || !gameState.players) return;
+  gameState.players.forEach((pl, i) => {
+    const p = pawns[i];
+    if (!p) return;
+    let badge = p.querySelector('.pawn-shield');
+    if (pl.shield) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'pawn-shield';
+        badge.textContent = '🛡️';
+        badge.title = 'มีโล่ป้องกัน';
+        p.appendChild(badge);
+      }
+    } else if (badge) {
+      badge.remove();
+    }
+  });
+}
+
 function renderPawns() {
   pawns.forEach(p => p.remove());
   pawns.length = 0;
@@ -1167,6 +1373,7 @@ function renderPawns() {
     pawns.push(p);
     placePawn(i, pl.pos);
   });
+  updatePawnShields();
 }
 
 function showToast(text, icon = '🚶', sub = '') {
@@ -1200,7 +1407,7 @@ function updateHUD() {
   document.getElementById('turnPlayerAvatar').textContent = cur.avatar;
   document.getElementById('turnPlayerAvatar').style.borderColor = COLORS[gameState.turn % COLORS.length];
   document.getElementById('turnPlayerName').textContent = cur.name;
-  document.getElementById('turnPlayerSub').textContent = cur.pos === 0 ? 'จุดสตาร์ท · ประตูรัชดาฯ' : `ช่อง ${cur.pos} · ${MILESTONES[cur.pos]?.name || z.name}`;
+  document.getElementById('turnPlayerSub').textContent = cur.pos === 0 ? 'จุดสตาร์ท · ประตูรัชดาฯ' : `ช่อง ${cur.pos} · ${MILESTONES[cur.pos]?.name || (SPECIAL_TILES.has(cur.pos) ? 'ช่องสุ่มสกิล ⚡' : z.name)}`;
 
   document.getElementById('turnLabel').textContent = !live ? 'จบเกมแล้ว' : myTurn ? 'ตาของคุณแล้ว!' : cur.bot ? `${cur.name} กำลังเดิน...` : `รอ ${cur.name} ทอย...`;
   document.getElementById('turnStatusBadge').textContent = live ? (myTurn ? 'ทอยเต๋าได้เลย 🎲' : 'กำลังรอ...') : 'ยินดีด้วย! 🏆';
@@ -1213,6 +1420,7 @@ function updateHUD() {
 
   // Active pawn bounce
   pawns.forEach((p, i) => p.classList.toggle('active', i === gameState.turn && live));
+  updatePawnShields();
 
   // Player progress list
   const progressListEl = document.getElementById('playersProgressList');
@@ -1224,7 +1432,10 @@ function updateHUD() {
         <span class="text-xl">${esc(pl.avatar)}</span>
         <div class="flex-1 min-w-0">
           <div class="flex justify-between items-center text-xs font-bold mb-1">
-            <span class="truncate text-emerald-950">${esc(pl.name)}</span>
+            <span class="truncate text-emerald-950 flex items-center gap-1">
+              ${esc(pl.name)}
+              ${pl.shield ? '<span class="text-[10px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-700 font-bold border border-blue-200">🛡️ โล่</span>' : ''}
+            </span>
             <span class="text-emerald-700 font-game">${pl.pos}/100</span>
           </div>
           <div class="w-full h-2 rounded-full bg-emerald-200 overflow-hidden">
@@ -1243,7 +1454,15 @@ function updateHUD() {
     botTimer = setTimeout(() => {
       botTimer = null;
       if (gameState && gameState.winner == null && !isBusy && gameState.players[gameState.turn].bot) {
-        handleRoll(1 + Math.floor(Math.random() * 6));
+        const v = 1 + Math.floor(Math.random() * 6);
+        const bpl = gameState.players[gameState.turn];
+        const bTarget = Math.min(100, bpl.pos + v);
+        let bSkill = null;
+        if (SPECIAL_TILES.has(bTarget)) {
+          bSkill = SKILL_KEYS[Math.floor(Math.random() * SKILL_KEYS.length)];
+        }
+        if (gameState.mode === 'host') netSession.broadcastRoll(v, bSkill);
+        handleRoll(v, bSkill);
       }
     }, 900);
   }
@@ -1259,7 +1478,303 @@ function isMyTurn() {
   return false;
 }
 
-async function handleRoll(v) {
+// Special Skill Resolver for Multiplayer / Online Sync
+let skillWaitResolver = null;
+
+async function triggerSpecialSkill(turnIdx, skillId) {
+  const pl = gameState.players[turnIdx];
+  if (!skillId || !SKILLS[skillId]) {
+    skillId = SKILL_KEYS[Math.floor(Math.random() * SKILL_KEYS.length)];
+  }
+  const skill = SKILLS[skillId];
+
+  sfx.playSkillDraw();
+  const modal = document.getElementById('modalSkillCard');
+  document.getElementById('skillCardIcon').textContent = skill.icon;
+  document.getElementById('skillCardName').textContent = skill.name;
+  document.getElementById('skillCardDesc').textContent = skill.desc;
+
+  const typeBadge = document.getElementById('skillCardTypeBadge');
+  typeBadge.textContent = skill.typeLabel;
+  typeBadge.className = `inline-block px-2.5 py-0.5 rounded-full text-[11px] font-extrabold mb-1 border ${skill.typeColor}`;
+
+  const targetArea = document.getElementById('skillTargetArea');
+  const selfArea = document.getElementById('skillSelfArea');
+  const targetList = document.getElementById('skillTargetList');
+  const waitingMsg = document.getElementById('skillWaitingMsg');
+  const botNotice = document.getElementById('skillBotNotice');
+
+  modal.classList.remove('hidden');
+
+  const myTurn = isMyTurn();
+  const isBot = pl.bot;
+
+  let result = null;
+
+  if (!skill.needsTarget) {
+    // Self-Buff Skill (Skywalk Dash, Bike Sprint, Tree Shield)
+    targetArea.classList.add('hidden');
+    selfArea.classList.remove('hidden');
+    botNotice.classList.toggle('hidden', !isBot);
+
+    const btnUse = document.getElementById('btnUseSkill');
+    btnUse.disabled = !myTurn && !isBot;
+    btnUse.textContent = myTurn ? 'ใช้งานสกิลทันที! ✨' : `รอ ${pl.name} กดใช้สกิล... ⏳`;
+
+    if (isBot) {
+      await sleep(1500);
+      result = await applySkillEffect(turnIdx, skillId, null);
+    } else if (myTurn) {
+      result = await new Promise(resolve => {
+        btnUse.onclick = async () => {
+          btnUse.onclick = null;
+          if (gameState.mode === 'host' || gameState.mode === 'guest') {
+            netSession.send({ type: 'SKILL_USE', skillId });
+          }
+          const res = await applySkillEffect(turnIdx, skillId, null);
+          resolve(res);
+        };
+      });
+    } else {
+      result = await new Promise(resolve => {
+        skillWaitResolver = async () => {
+          skillWaitResolver = null;
+          const res = await applySkillEffect(turnIdx, skillId, null);
+          resolve(res);
+        };
+      });
+    }
+  } else {
+    // Targeted Skill (Snake Call, Swap, Lake Gust)
+    selfArea.classList.add('hidden');
+    targetArea.classList.remove('hidden');
+    botNotice.classList.toggle('hidden', !isBot);
+    waitingMsg.classList.toggle('hidden', myTurn || isBot);
+
+    const targets = gameState.players.map((p, idx) => ({ p, idx })).filter(item => item.idx !== turnIdx);
+
+    if (targets.length === 0) {
+      targetList.innerHTML = `<div class="p-3 text-center text-xs text-emerald-800 font-bold bg-emerald-50 rounded-2xl">ไม่มีผู้เล่นอื่นให้ใช้สกิล</div>`;
+      await sleep(1400);
+      modal.classList.add('hidden');
+      return { extraRoll: false };
+    }
+
+    targetList.innerHTML = targets.map(({ p, idx }) => `
+      <div class="flex items-center justify-between gap-2 p-2.5 rounded-2xl bg-white border-2 border-emerald-200 shadow-sm hover:border-emerald-400 transition">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="text-2xl">${esc(p.avatar)}</span>
+          <div class="truncate">
+            <div class="font-bold text-xs text-emerald-950 flex items-center gap-1">
+              <span>${esc(p.name)}</span>
+              ${p.shield ? '<span class="text-[10px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-700 font-bold border border-blue-200">🛡️ มีโล่</span>' : ''}
+            </div>
+            <span class="text-[10px] text-emerald-700 font-bold">ช่อง ${p.pos}</span>
+          </div>
+        </div>
+        ${myTurn && !isBot ? `
+          <button type="button" data-target-idx="${idx}" class="skill-select-target-btn px-3 py-1.5 rounded-xl btn-3d btn-green text-white text-xs font-bold whitespace-nowrap shadow">
+            เลือกคนนี้ 🎯
+          </button>
+        ` : ''}
+      </div>
+    `).join('');
+
+    if (isBot) {
+      await sleep(1600);
+      let chosenIdx = targets[0].idx;
+      if (skillId === 'swap') {
+        const ahead = targets.filter(t => t.p.pos > pl.pos);
+        if (ahead.length > 0) {
+          ahead.sort((a, b) => b.p.pos - a.p.pos);
+          chosenIdx = ahead[0].idx;
+        } else {
+          targets.sort((a, b) => b.p.pos - a.p.pos);
+          chosenIdx = targets[0].idx;
+        }
+      } else {
+        targets.sort((a, b) => b.p.pos - a.p.pos);
+        chosenIdx = targets[0].idx;
+      }
+      if (gameState.mode === 'host') {
+        netSession.send({ type: 'SKILL_TARGET', targetIdx: chosenIdx, skillId });
+      }
+      result = await applySkillEffect(turnIdx, skillId, chosenIdx);
+    } else if (myTurn) {
+      result = await new Promise(resolve => {
+        targetList.onclick = async (e) => {
+          const btn = e.target.closest('.skill-select-target-btn');
+          if (!btn) return;
+          targetList.onclick = null;
+          const chosenIdx = parseInt(btn.dataset.targetIdx, 10);
+          if (gameState.mode === 'host' || gameState.mode === 'guest') {
+            netSession.send({ type: 'SKILL_TARGET', targetIdx: chosenIdx, skillId });
+          }
+          const res = await applySkillEffect(turnIdx, skillId, chosenIdx);
+          resolve(res);
+        };
+      });
+    } else {
+      result = await new Promise(resolve => {
+        skillWaitResolver = async (msg) => {
+          skillWaitResolver = null;
+          const res = await applySkillEffect(turnIdx, skillId, msg.targetIdx);
+          resolve(res);
+        };
+      });
+    }
+  }
+
+  modal.classList.add('hidden');
+  return result;
+}
+
+async function applySkillEffect(turnIdx, skillId, targetIdx) {
+  const pl = gameState.players[turnIdx];
+  const modal = document.getElementById('modalSkillCard');
+  modal.classList.add('hidden');
+
+  if (skillId === 'tree_shield') {
+    pl.shield = true;
+    sfx.playShield();
+    showToast(`🛡️ ${pl.name} ได้รับ "ร่มเงาต้นไม้"!`, '🛡️', 'มีโล่ป้องกันการโดนงูกัดหรือโดนสกิลแกล้ง 1 ครั้ง');
+    updatePawnShields();
+    updateHUD();
+    await sleep(400);
+    return { extraRoll: false };
+  }
+
+  if (skillId === 'bike_sprint') {
+    sfx.playPop();
+    showToast(`🚲 ${pl.name} "ปั่นจักรยานรอบสวน"!`, '🚲', 'ได้สิทธิ์ทอยลูกเต๋าซ้ำอีก 1 รอบทันที!');
+    updateHUD();
+    await sleep(400);
+    return { extraRoll: true };
+  }
+
+  if (skillId === 'skywalk_dash') {
+    sfx.playStep();
+    showToast(`🌉 ${pl.name} ใช้ "ทางลัดสกายวอล์ค"!`, '🌉', 'สปีดพุ่งไปข้างหน้า 4 ช่องทันที!');
+    const targetPos = Math.min(100, pl.pos + 4);
+    for (let step = pl.pos + 1; step <= targetPos; step++) {
+      pl.pos = step;
+      placePawn(turnIdx, step);
+      sfx.playStep();
+      await sleep(180);
+    }
+    checkPassportStamps(targetPos);
+
+    if (LADDERS[targetPos]) {
+      const [to, msg] = LADDERS[targetPos];
+      sfx.playLadder();
+      showToast(`🪜 ${pl.name} ${msg}`, '🪜', `พุ่งทะยานจากช่อง ${targetPos} ไปช่อง ${to}!`);
+      await sleep(250);
+      pl.pos = to;
+      placePawn(turnIdx, to);
+      checkPassportStamps(to);
+      await sleep(350);
+    } else if (SNAKES[targetPos]) {
+      const [to, msg] = SNAKES[targetPos];
+      if (pl.shield) {
+        pl.shield = false;
+        sfx.playShield();
+        showToast(`🛡️ ${pl.name} มีร่มเงาต้นไม้! ป้องกันงูกัดที่ช่อง ${targetPos}!`, '🛡️', 'โล่แตกสลายแต่ปลอดภัย ไม่ต้องถอยหลัง!');
+        updatePawnShields();
+        await sleep(350);
+      } else {
+        sfx.playSnake();
+        showToast(`🐍 ${pl.name} ${msg}`, '🐍', `ถอยกลับจากช่อง ${targetPos} มาช่อง ${to}!`);
+        await sleep(250);
+        pl.pos = to;
+        placePawn(turnIdx, to);
+        await sleep(350);
+      }
+    }
+    updateHUD();
+    return { extraRoll: false };
+  }
+
+  // Targeted skills
+  if (targetIdx == null || !gameState.players[targetIdx]) return { extraRoll: false };
+  const targetPl = gameState.players[targetIdx];
+
+  if (skillId === 'snake_call') {
+    if (targetPl.shield) {
+      targetPl.shield = false;
+      sfx.playShield();
+      showToast(`🛡️ ${targetPl.name} มีร่มเงาต้นไม้! โล่ป้องกัน "งูเรียกเพื่อน" ไว้ได้!`, '🛡️', 'โล่แตกสลายแต่ปลอดภัย ไม่โดนวาร์ป');
+      updatePawnShields();
+      updateHUD();
+      await sleep(400);
+      return { extraRoll: false };
+    }
+    const snakeHeads = [27, 40, 54, 76, 89, 97];
+    const nearestHead = [...snakeHeads].sort((a, b) => Math.abs(a - targetPl.pos) - Math.abs(b - targetPl.pos))[0];
+    targetPl.pos = nearestHead;
+    placePawn(targetIdx, nearestHead);
+    sfx.playSnake();
+    showToast(`🐍 ${pl.name} ใช้งูเรียกเพื่อน! วาร์ป ${targetPl.name} ไปช่องหัวงู ${nearestHead}!`, '🐍', 'งูกัดเลื้อยลงหางทันที!');
+    await sleep(400);
+
+    const [to, msg] = SNAKES[nearestHead];
+    targetPl.pos = to;
+    placePawn(targetIdx, to);
+    sfx.playSnake();
+    showToast(`🐍 ${targetPl.name} ${msg}`, '🐍', `ถอยกลับจากช่อง ${nearestHead} สู่ช่อง ${to}`);
+    updateHUD();
+    await sleep(400);
+    return { extraRoll: false };
+  }
+
+  if (skillId === 'swap') {
+    if (targetPl.shield) {
+      targetPl.shield = false;
+      sfx.playShield();
+      showToast(`🛡️ ${targetPl.name} มีร่มเงาต้นไม้! โล่ป้องกันการ "สลับร่าง" ไว้ได้!`, '🛡️', 'ตำแหน่งของผู้เล่นไม่เปลี่ยน');
+      updatePawnShields();
+      updateHUD();
+      await sleep(400);
+      return { extraRoll: false };
+    }
+    const myPos = pl.pos;
+    const tgtPos = targetPl.pos;
+    pl.pos = tgtPos;
+    targetPl.pos = myPos;
+    placePawn(turnIdx, pl.pos);
+    placePawn(targetIdx, targetPl.pos);
+    sfx.playPop();
+    showToast(`🔄 สลับร่างสำเร็จ! ${pl.name} (ช่อง ${pl.pos}) ↔ ${targetPl.name} (ช่อง ${targetPl.pos})`, '🔄', 'สลับตำแหน่งบนกระดาน!');
+    checkPassportStamps(pl.pos);
+    checkPassportStamps(targetPl.pos);
+    updateHUD();
+    await sleep(400);
+    return { extraRoll: false };
+  }
+
+  if (skillId === 'lake_gust') {
+    if (targetPl.shield) {
+      targetPl.shield = false;
+      sfx.playShield();
+      showToast(`🛡️ ${targetPl.name} มีร่มเงาต้นไม้! โล่ต้าน "ลมพัดถอยหลัง" ไว้ได้!`, '🛡️', 'โล่แตกสลายแต่ไม่ถอยหลัง');
+      updatePawnShields();
+      updateHUD();
+      await sleep(400);
+      return { extraRoll: false };
+    }
+    sfx.playGust();
+    const newPos = Math.max(0, targetPl.pos - 3);
+    showToast(`💨 ลมพัดทะเลสาบพัด ${targetPl.name} ถอยหลัง 3 ช่อง!`, '💨', `จากช่อง ${targetPl.pos} สู่ช่อง ${newPos}`);
+    targetPl.pos = newPos;
+    placePawn(targetIdx, newPos);
+    updateHUD();
+    await sleep(400);
+    return { extraRoll: false };
+  }
+
+  return { extraRoll: false };
+}
+
+async function handleRoll(v, skillId = null) {
   if (isBusy || !gameState || gameState.winner != null) return;
   isBusy = true;
   rollSeq++;
@@ -1284,7 +1799,9 @@ async function handleRoll(v) {
 
   checkPassportStamps(target);
 
-  // 3. Check for Ladder or Snake
+  let extraRoll = false;
+
+  // 3. Check for Ladder, Snake, or Special Skill Tile
   if (LADDERS[target]) {
     const [to, msg] = LADDERS[target];
     sfx.playLadder();
@@ -1296,24 +1813,43 @@ async function handleRoll(v) {
     await sleep(350);
   } else if (SNAKES[target]) {
     const [to, msg] = SNAKES[target];
-    sfx.playSnake();
-    showToast(`🐍 ${pl.name} ${msg}`, '🐍', `ถอยกลับจากช่อง ${target} มาช่อง ${to}!`);
-    await sleep(250);
-    pl.pos = to;
-    placePawn(turnIdx, to);
-    await sleep(350);
+    if (pl.shield) {
+      pl.shield = false;
+      sfx.playShield();
+      showToast(`🛡️ ${pl.name} มีร่มเงาต้นไม้! ป้องกันงูกัดที่ช่อง ${target}!`, '🛡️', 'โล่แตกสลายแต่ปลอดภัย ไม่ต้องถอยหลัง!');
+      updatePawnShields();
+      await sleep(350);
+    } else {
+      sfx.playSnake();
+      showToast(`🐍 ${pl.name} ${msg}`, '🐍', `ถอยกลับจากช่อง ${target} มาช่อง ${to}!`);
+      await sleep(250);
+      pl.pos = to;
+      placePawn(turnIdx, to);
+      await sleep(350);
+    }
+  } else if (SPECIAL_TILES.has(target)) {
+    showToast(`⚡ ${pl.name} ตกช่องพิเศษ! สุ่มการ์ดสกิล...`, '⚡', 'รับพลังช่วยเหลือหรือแกล้งเพื่อน!');
+    await sleep(300);
+    const skillRes = await triggerSpecialSkill(turnIdx, skillId);
+    if (skillRes && skillRes.extraRoll) {
+      extraRoll = true;
+    }
   } else {
     const m = MILESTONES[target];
     showToast(`${pl.name} เดินถึง ${m ? m.name : zoneOf(target).name}`, m ? m.icon : '🌲', m ? m.desc : 'เส้นทางเดินเท้าชมธรรมชาติสวนป่า');
   }
 
-  // 4. Check for Winner
+  // 4. Check for Winner or Extra Roll
   if (pl.pos >= 100) {
     gameState.winner = turnIdx;
     sfx.playWin();
     showWinnerModal(pl);
-  } else if (v === 6) {
-    showToast(`🎉 ${pl.name} ทอยได้เลข 6! ได้สิทธิ์ทอยเพิ่มอีกครั้ง!`, '🎲', 'หมุนเต๋าต่อได้ทันที');
+  } else if (v === 6 || extraRoll) {
+    if (extraRoll) {
+      showToast(`🚲 ${pl.name} ปั่นจักรยานรอบสวน! ได้สิทธิ์ทอยเต๋าอีกรอบทันที!`, '🚲', 'ทอยเต๋าต่อได้เลย');
+    } else {
+      showToast(`🎉 ${pl.name} ทอยได้เลข 6! ได้สิทธิ์ทอยเพิ่มอีกครั้ง!`, '🎲', 'หมุนเต๋าต่อได้ทันที');
+    }
   } else {
     gameState.turn = (gameState.turn + 1) % gameState.players.length;
   }
@@ -1341,15 +1877,20 @@ function showWinnerModal(winnerPlayer) {
 document.getElementById('btnRoll').onclick = () => {
   if (!isMyTurn() || isBusy || rollPending) return;
   if (gameState.mode === 'guest') {
-    // Host is the only dice authority, so a guest click can't race the host's AFK auto-roll
     rollPending = true;
     netSession.send({ type: 'ROLL_REQ', id: netSession.myId });
     updateHUD();
     return;
   }
   const v = 1 + Math.floor(Math.random() * 6);
-  if (gameState.mode === 'host') netSession.broadcastRoll(v);
-  handleRoll(v);
+  const pl = gameState.players[gameState.turn];
+  const target = Math.min(100, pl.pos + v);
+  let skillId = null;
+  if (SPECIAL_TILES.has(target)) {
+    skillId = SKILL_KEYS[Math.floor(Math.random() * SKILL_KEYS.length)];
+  }
+  if (gameState.mode === 'host') netSession.broadcastRoll(v, skillId);
+  handleRoll(v, skillId);
 };
 
 // ==========================================
@@ -1360,12 +1901,14 @@ function openLandmarkInfo(tileNum) {
   const z = zoneOf(tileNum);
   const ladder = LADDERS[tileNum];
   const snake = SNAKES[tileNum];
+  const isSpecial = SPECIAL_TILES.has(tileNum);
 
   let extra = '';
   if (ladder) extra = `<div class="mt-2 p-2.5 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs">🪜 ทางลัด: ${ladder[1]} (ไปช่อง ${ladder[0]})</div>`;
   if (snake) extra = `<div class="mt-2 p-2.5 rounded-xl bg-rose-100 text-rose-900 font-bold text-xs">🐍 อุปสรรค: ${snake[1]} (ถอยกลับช่อง ${snake[0]})</div>`;
+  if (isSpecial) extra = `<div class="mt-2 p-2.5 rounded-xl bg-amber-100 text-amber-900 font-bold text-xs">⚡ ช่องพิเศษ: ตกช่องนี้เพื่อสุ่มการ์ดสกิล 1 ใน 6 ชนิด!</div>`;
 
-  showToast(`ช่อง ${tileNum}: ${m ? m.name : z.name}`, m ? m.icon : '🌲', m ? m.desc : z.name);
+  showToast(`ช่อง ${tileNum}: ${m ? m.name : (isSpecial ? 'ช่องสุ่มสกิลพิเศษ' : z.name)}`, m ? m.icon : (isSpecial ? '⚡' : '🌲'), m ? m.desc : (isSpecial ? 'สุ่มรับพลังช่วยเหลือหรือสกิลแกล้งเพื่อน' : z.name));
 }
 
 // Build Park Guide Landmarks List
@@ -1532,8 +2075,14 @@ class NetworkSession {
       } else if (data.type === 'ROLL_REQ' && gameState && gameState.winner == null && !isBusy
                  && gameState.players[gameState.turn].id === data.id) {
         const v = 1 + Math.floor(Math.random() * 6);
-        this.broadcastRoll(v);
-        handleRoll(v);
+        const pl = gameState.players[gameState.turn];
+        const target = Math.min(100, pl.pos + v);
+        let skillId = null;
+        if (SPECIAL_TILES.has(target)) {
+          skillId = SKILL_KEYS[Math.floor(Math.random() * SKILL_KEYS.length)];
+        }
+        this.broadcastRoll(v, skillId);
+        handleRoll(v, skillId);
       } else if (data.type === 'REJOIN' && gameState && !isBusy && gameState.players.some(p => p.id === data.id)) {
         // Reloaded guest asks for the live game; skip while a move animates so positions are final
         this.send({ type: 'STATE', to: data.id, state: { players: gameState.players, turn: gameState.turn, winner: gameState.winner } });
@@ -1583,7 +2132,14 @@ class NetworkSession {
       if (gameState.turn !== data.turn) {
         gameState.turn = data.turn;
       }
-      handleRoll(data.roll);
+      handleRoll(data.roll, data.skillId);
+    }
+
+    if (data.type === 'SKILL_TARGET') {
+      if (skillWaitResolver) skillWaitResolver({ type: 'target', targetIdx: data.targetIdx });
+    }
+    if (data.type === 'SKILL_USE') {
+      if (skillWaitResolver) skillWaitResolver({ type: 'self' });
     }
   }
 
@@ -1608,8 +2164,8 @@ class NetworkSession {
     this.send({ type: 'START', players: this.players });
   }
 
-  broadcastRoll(v) {
-    this.send({ type: 'ROLL', roll: v, turn: gameState.turn });
+  broadcastRoll(v, skillId = null) {
+    this.send({ type: 'ROLL', roll: v, turn: gameState.turn, skillId });
   }
 
   leave() {
@@ -1636,7 +2192,7 @@ function showScreen(name) {
   screenMode.classList.toggle('hidden', name !== 'mode');
   screenMulti.classList.toggle('hidden', name !== 'multi');
   screenGame.classList.toggle('hidden', name !== 'game');
-  ['modalWin', 'modalParkGuide', 'modalPassport', 'modalBotSetup'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  ['modalWin', 'modalParkGuide', 'modalPassport', 'modalBotSetup', 'modalSkillCard'].forEach(id => document.getElementById(id).classList.add('hidden'));
 }
 
 // Screen 1: Play -> Screen 2: Mode
@@ -2000,7 +2556,7 @@ function updateWinButton() {
 function resetGame() {
   if (!gameState) return;
   readyIds.clear();
-  gameState.players.forEach(p => p.pos = 0);
+  gameState.players.forEach(p => { p.pos = 0; p.shield = false; });
   gameState.turn = 0;
   gameState.winner = null;
   isBusy = false; turnKey = -1; rollPending = false;
@@ -2009,6 +2565,7 @@ function resetGame() {
   renderPawns();
   updateHUD();
   document.getElementById('modalWin').classList.add('hidden');
+  document.getElementById('modalSkillCard').classList.add('hidden');
   showToast('รีเซ็ตเกมใหม่แล้ว! ออกตัวจากจุดสตาร์ท', '↺', 'ประตูรัชดาภิเษก');
 }
 
@@ -2275,6 +2832,39 @@ function restoreGame(state, mode) {
     'บอทกระรอกสวน 🐿️': 'Squirrel Bot 🐿️',
     'บอทนกกระเต็น 🦜': 'Kingfisher Bot 🦜',
     'บอทน้องเหี้ยเจ้าถิ่น 🦎': 'Monitor Lizard Bot 🦎',
+    // special skills
+    'กล่องสุ่มสกิลพิเศษ!': 'Special Skill Mystery Box!',
+    'กล่องสุ่มสกิล': 'Mystery Skill Box',
+    'ช่องพิเศษสุ่มสกิล': 'Special Skill Tile',
+    'ช่องสุ่มสกิลพิเศษ': 'Mystery Skill Tile',
+    'ช่องสุ่มสกิล': 'Skill Tile',
+    'ช่องพิเศษ: ตกช่องนี้เพื่อสุ่มการ์ดสกิล 1 ใน 6 ชนิด!': 'Special Tile: Land here to draw 1 of 6 mystery skills!',
+    'สุ่มรับพลังช่วยเหลือหรือสกิลแกล้งเพื่อน': 'Draw helpful power-ups or trick skills',
+    'งูเรียกเพื่อน': 'Snake Call',
+    'วาร์ปผู้เล่นอื่น 1 คน ไปตกช่องหัวงูที่ใกล้ที่สุด': 'Teleport 1 opponent to the nearest snake head',
+    'สลับร่าง': 'Swap',
+    'เลือกสลับตำแหน่งตัวเดินของเรากับผู้เล่นอื่น 1 คน': 'Swap positions with another player',
+    'ทางลัดสกายวอล์ค': 'Skywalk Dash',
+    'เดินพุ่งไปข้างหน้าทันที 4 ช่อง': 'Dash forward 4 tiles immediately',
+    'ปั่นจักรยานรอบสวน': 'Bike Sprint',
+    'ได้สิทธิ์ทอยลูกเต๋าซ้ำอีก 1 รอบทันที': 'Get an immediate extra dice roll',
+    'ร่มเงาต้นไม้': 'Tree Shield',
+    'ได้รับโล่ป้องกันการโดนงูกัดหรือโดนสกิลแกล้ง 1 ครั้ง': 'Gain a shield blocking 1 snake bite or trick skill',
+    'ลมพัดถอยหลัง': 'Lake Gust',
+    'เลือกผู้เล่นอื่น 1 คน ให้เดินถอยหลัง 3 ช่อง': 'Push 1 opponent backward 3 tiles',
+    '🎯 สายป่วนเพื่อน': '🎯 Trick Skill',
+    '⚡ สายเดินเร็ว': '⚡ Speed Buff',
+    '🛡️ สายป้องกัน': '🛡️ Defense Shield',
+    'เลือกผู้เล่นเป้าหมาย:': 'Select target player:',
+    'ใช้งานสกิลเลย!': 'Use Skill!',
+    'ใช้งานสกิลทันที! ✨': 'Use Skill Now! ✨',
+    'กำลังรอผู้เล่นเลือกเป้าหมาย...': 'Waiting for player to select target...',
+    'บอทกำลังเลือกเป้าหมาย...': 'Bot is picking a target...',
+    '🛡️ โล่': '🛡️ Shield',
+    '🛡️ มีโล่': '🛡️ Shielded',
+    'มีโล่ป้องกัน': 'Protected by Shield',
+    'เลือกคนนี้ 🎯': 'Target 🎯',
+    'ไม่มีผู้เล่นอื่นให้ใช้สกิล': 'No other players to target',
   }).sort((a, b) => b[0].length - a[0].length);
   const REV = EN.map(([t, e]) => [e, t]).sort((a, b) => b[0].length - a[0].length);
   const THAI = /[฀-๿]/;
