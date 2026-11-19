@@ -270,6 +270,7 @@
 <button id="btnSoundToggle" class="fixed top-3 right-3 sm:top-4 sm:right-4 z-50 w-11 h-11 rounded-2xl game-card flex items-center justify-center text-xl shadow-md hover:scale-105 active:scale-95 transition" title="เปิด/ปิดเสียง" aria-label="เปิด/ปิดเสียง">
   <span id="soundIcon">🔊</span>
 </button>
+<button id="btnLang" class="fixed top-3 right-16 sm:top-4 sm:right-[4.5rem] z-50 h-11 min-w-11 px-3 rounded-2xl game-card flex items-center justify-center font-game font-bold text-sm text-emerald-900 shadow-md hover:scale-105 active:scale-95 transition">EN</button>
 
 <!-- ========================================== -->
 <!-- SCREEN 1: หน้าแรก (Splash / Landing Screen) -->
@@ -556,7 +557,7 @@
 <!-- ========================================== -->
 <section id="screenGame" class="hidden relative z-10 flex-1 flex flex-col p-2 sm:p-4 max-w-7xl mx-auto w-full">
   <!-- Minimal Top Nav -->
-  <header class="flex items-center justify-between gap-2 mb-3 px-1 sm:px-2 pr-14">
+  <header class="flex items-center justify-between gap-2 mb-3 px-1 sm:px-2 pr-32">
     <!-- Left: Home & Park Guide Drawer Button -->
     <div class="flex items-center gap-2">
       <button id="btnGameHome" class="px-3.5 py-2 rounded-2xl game-card font-bold text-xs flex items-center gap-1.5 shadow-sm hover:bg-emerald-50 transition" title="กลับหน้าแรก">
@@ -2051,6 +2052,261 @@ function restoreGame(state, mode) {
     document.getElementById('guestMyName').textContent = saved.name;
     saveOnline(); // init() -> leave() cleared it; keep it until STATE arrives
   }
+})();
+</script>
+<script>
+/* TH/EN toggle: translates rendered DOM text via a phrase dictionary, so game code keeps writing Thai.
+   shortcut: substring dictionary, not per-key i18n; add a phrase here whenever new Thai UI text is added. */
+(() => {
+  const EN = Object.entries({
+    // home / mode
+    'บันไดงูสวนเบญฯ': 'Snakes & Ladders',
+    'ผจญภัยแผนที่จริง 8 โซนแลนด์มาร์คสวนป่าเบญจกิตติ': 'Explore 8 real landmark zones of Benjakitti Forest Park',
+    'เลือกโหมดเกม': 'Choose a mode',
+    'เล่นกับบอท': 'Play vs bots',
+    'เดินเพลินๆ แข่งกับบอทสัตว์เจ้าถิ่นสวนเบญฯ': 'Race the park\'s local animal bots',
+    'กดรหัสเข้าห้อง หรือเล่นด้วยกันจอเดียว': 'Join with a PIN or share one screen',
+    'ชื่อของคุณ': 'Your name',
+    'เลือกตัวละคร': 'Pick a character',
+    'จำนวนบอทเจ้าถิ่น': 'Number of bots',
+    ' บอท': ' bot(s)',
+    'เริ่มเดินสวนเลย! 🏃': 'Start walking! 🏃',
+    'นักวิ่งสายชิล': 'Chill Runner',
+    // multiplayer
+    '🔑 ใส่รหัสห้อง': '🔑 Join',
+    '👑 สร้างห้อง': '👑 Host',
+    '📱 เครื่องเดียว': '📱 One device',
+    'กดรหัส Game PIN': 'Enter Game PIN',
+    'ชื่อเล่นของคุณ': 'Your nickname',
+    'ใส่ชื่อเล่น': 'Nickname',
+    'เข้าห้องเลย (ENTER) 🚀': 'Join room 🚀',
+    'สร้างห้องใหม่': 'Create a room',
+    'เปิดห้องแล้วบอก Game PIN ให้เพื่อนเข้าเล่น': 'Open a room and share the Game PIN with friends',
+    'ชื่อ Host': 'Host name',
+    'หัวหน้าทัวร์': 'Tour Leader',
+    'เปิดห้อง Game PIN ✨': 'Open room ✨',
+    'คัดลอกรหัส': 'Copy PIN',
+    'บอกรหัสนี้ให้เพื่อนกดเข้าห้อง': 'Share this PIN so friends can join',
+    'ผู้เล่นในห้อง': 'Players in room',
+    'เริ่มเกมเลย (START) 🏁': 'Start game 🏁',
+    'ต้องมีผู้เล่นอย่างน้อย 2 คนเพื่อเริ่มเกม': 'Need at least 2 players to start',
+    'เล่นเครื่องเดียวกัน': 'Pass & play',
+    'ผลัดกันทอยลูกเต๋าบนหน้าจอเดียว': 'Take turns rolling on one screen',
+    'จำนวนผู้เล่น': 'Number of players',
+    ' คน': ' players',
+    'เริ่มเล่นเลย! 🎯': 'Start playing! 🎯',
+    'คุณเข้าร่วมแล้ว!': 'You\'re in!',
+    'รหัสห้อง: ': 'Room PIN: ',
+    '⏳ กำลังรอ Host สั่งเริ่มเกม...': '⏳ Waiting for the host to start...',
+    'ออกจากห้อง': 'Leave room',
+    'คุณถูก Host เชิญออกจากห้อง': 'The host removed you from the room',
+    'คัดลอก Game PIN แล้ว! ส่งให้เพื่อนเข้าเล่นได้เลย': 'Game PIN copied! Send it to your friends',
+    'เพื่อนร่วมทาง': 'Buddy',
+    'กรุณาใส่รหัส Game PIN 6 หลักให้ครบถ้วน': 'Please enter the full 6-digit Game PIN',
+    'คัดลอก PIN ': 'Copied PIN ',
+    ' แล้ว!': '!',
+    ' (คุณ)': ' (you)',
+    'เชิญ ': 'Remove ',
+    // game screen
+    'หน้าแรก': 'Home',
+    'กลับหน้าแรก': 'Back to home',
+    'แผนที่จริงสวนเบญฯ': 'Park map',
+    'คลิกเพื่อคัดลอก PIN': 'Click to copy PIN',
+    'พาสปอร์ตตราประทับสวนเบญฯ': 'Park stamp passport',
+    'ตราประทับ': 'Stamps',
+    'เริ่มเกมใหม่': 'Restart game',
+    'ถึงตาเดิน': 'Your move',
+    'ทอยเต๋าได้เลย 🎲': 'Roll the dice 🎲',
+    'ทอยเต๋าได้เลย': 'Roll the dice',
+    'กำลังรอ...': 'Waiting...',
+    'ทอยเต๋า!': 'Roll!',
+    'ยินดีต้อนรับสู่สวนป่าเบญจกิตติ! ออกสตาร์ทจากประตูรัชดาภิเษก': 'Welcome to Benjakitti Forest Park! Start at Ratchadaphisek Gate',
+    'เดินชมธรรมชาติกลางกรุงมุ่งสู่ศาลาริมน้ำ': 'Walk through nature in the city to the lakeside pavilion',
+    'อันดับผู้เล่น (Leaderboard)': 'Leaderboard',
+    'เป้าหมาย: ช่อง 100 🏆': 'Goal: tile 100 🏆',
+    'สถานที่จริงในสวนเบญจกิตติ': 'Real places in Benjakitti Park',
+    'สวนป่านิเวศน์ 450 ไร่ ใจกลางอโศก-คลองเตย': '450-rai eco forest park in central Asok-Khlong Toei',
+    'เดินผ่านแลนด์มาร์คสำคัญเพื่อสะสมตราประทับของสวนเบญฯ!': 'Pass key landmarks to collect park stamps!',
+    'ศาลาริมน้ำเบญจกิตติ (Lakeside Pavilion)': 'Lakeside Pavilion',
+    'ผู้ชนะ!': 'Winner!',
+    'เข้าถึงจุดชมวิวพระอาทิตย์ตกริมทะเลสาบเป็นคนแรก!': 'First to reach the lakeside sunset viewpoint!',
+    'เล่นใหม่อีกครั้ง ↺': 'Play again ↺',
+    'กลับหน้าหลัก 🏠': 'Back to home 🏠',
+    'เปิด/ปิดเสียง': 'Sound on/off',
+    'ย้อนกลับ': 'Back',
+    'ปิด': 'Close',
+    'จบเกมแล้ว': 'Game over',
+    'ตาของคุณแล้ว!': 'Your turn!',
+    ' กำลังเดิน...': ' is moving...',
+    ' ทอย...': ' to roll...',
+    'รอ ': 'Waiting for ',
+    'ยินดีด้วย! 🏆': 'Congrats! 🏆',
+    '🎖️ ปลดล็อคตราประทับ: ': '🎖️ Stamp unlocked: ',
+    'สะสมตราประทับสวนเบญจกิตติสำเร็จ': 'Benjakitti stamp collected',
+    'จุดสตาร์ท': 'Start',
+    ' ทอยได้เลข 6! ได้สิทธิ์ทอยเพิ่มอีกครั้ง!': ' rolled a 6! Roll again!',
+    'หมุนเต๋าต่อได้ทันที': 'Roll again right away',
+    ' ทอยได้ ': ' rolled ',
+    ' ก้าว': ' steps',
+    'กำลังเดินผ่านเส้นทางสวนป่าเบญจกิตติ...': 'Walking the Benjakitti forest trail...',
+    'พุ่งทะยานจากช่อง ': 'Climbed from tile ',
+    'ถอยกลับจากช่อง ': 'Slid back from tile ',
+    ' ไปช่อง ': ' to tile ',
+    ' มาช่อง ': ' to tile ',
+    ' (ไปช่อง ': ' (to tile ',
+    ' (ถอยกลับช่อง ': ' (back to tile ',
+    '🪜 ทางลัด: ': '🪜 Shortcut: ',
+    '🐍 อุปสรรค: ': '🐍 Obstacle: ',
+    ' เดินถึง ': ' reached ',
+    'เส้นทางเดินเท้าชมธรรมชาติสวนป่า': 'Forest nature footpath',
+    ' บันได': ' ladder',
+    ' งู': ' snake',
+    'ช่อง ': 'Tile ',
+    'ผู้เล่น': 'Player',
+    'เกมเริ่มแล้ว! เดินชมสวนป่าเบญจกิตติสู่เส้นชัย 🏆': 'Game on! Walk Benjakitti Forest Park to the finish 🏆',
+    'ออกเดินทางจากประตูรัชดาฯ': 'Setting off from Ratchada Gate',
+    'คุณต้องการออกจากเกมเพื่อกลับหน้าแรกหรือไม่?': 'Leave this game and go back home?',
+    'รอผู้เล่นพร้อม (': 'Waiting for players (',
+    'ทุกคนพร้อม! เล่นใหม่ ↺': 'Everyone ready! Play again ↺',
+    'พร้อมแล้ว! รอ Host เริ่มเกม... ⏳': 'Ready! Waiting for host... ⏳',
+    'พร้อมเล่นต่อ ✋': 'Ready for another ✋',
+    'รีเซ็ตเกมใหม่แล้ว! ออกตัวจากจุดสตาร์ท': 'Game reset! Back to the start',
+    'ประตูรัชดาภิเษก': 'Ratchadaphisek Gate',
+    'พบเกมออนไลน์ที่ยังเล่นค้างอยู่ (PIN ': 'Found an unfinished online game (PIN ',
+    'กด "ตกลง" เพื่อกลับเข้าเกม': 'Press "OK" to rejoin',
+    'กด "ยกเลิก" เพื่อไปหน้าหลัก': 'Press "Cancel" to go home',
+    // zones
+    '1. ทางเข้า & สวนสุนัข': '1. Entrance & Dog Park',
+    'ทางเข้าหลัก & สวนสุนัข (Dog Park)': 'Main Entrance & Dog Park',
+    'ลู่ปั่นจักรยาน & ทางลาดสกายวอล์ค': 'Bike Lane & Skywalk Ramp',
+    'พื้นที่ชุ่มน้ำบึงบัว (Wetland Sponge City)': 'Lotus Wetland (Sponge City)',
+    'สกายวอล์คเรือนยอดไม้ & จามจุรีโบราณ': 'Canopy Skywalk & Ancient Rain Trees',
+    'โกดังยาสูบอนุรักษ์ & ศูนย์กีฬาในร่ม': 'Heritage Tobacco Warehouse & Indoor Sports',
+    'อัฒจันทร์หญ้ากลางแจ้ง (Amphitheatre)': 'Grass Amphitheatre',
+    'ทะเลสาบใหญ่เบญจกิตติ & ลู่วิ่งริมน้ำ': 'Great Lake & Lakeside Track',
+    'ศาลาริมน้ำและจุดชมวิวพระอาทิตย์ตก': 'Lakeside Pavilion & Sunset View',
+    // milestones
+    'ประตูรัชดาฯ': 'Ratchada Gate',
+    'จุดสตาร์ทใกล้ MRT ศูนย์สิริกิติ์ ทางเข้าหลักฝั่งถนนรัชดาภิเษก': 'Start near MRT Sirikit Centre, main gate on Ratchadaphisek Rd',
+    'จุดเช่าจักรยาน': 'Bike Rental',
+    'จุดบริการยืม-คืนจักรยาน สำหรับปั่นรอบสวน 1.8 กม.': 'Borrow a bike for the 1.8 km park loop',
+    'สวนสุนัข Dog Park': 'Dog Park',
+    'โซนสนามหญ้าเปิดโล่งสำหรับพาสัตว์เลี้ยงมาวิ่งเล่น': 'Open lawn for pets to run and play',
+    'สะพานไม้บึงบัว': 'Lotus Boardwalk',
+    'สะพานไม้ลอยน้ำลัดเลาะผ่านดงบัวหลวงและเกาะพืชน้ำ': 'Floating boardwalk through lotus beds and plant islands',
+    'จุดชมเกาะพืชน้ำ': 'Plant Island View',
+    'เกาะดินทรงกลมที่ปลูกพืชซับน้ำหลากตามแนวคิด Sponge City': 'Round islands of water-absorbing plants, Sponge City style',
+    'ลานกว้างไร้เงา': 'Shadeless Lawn',
+    'ลานสนามหญ้ากว้างโล่ง ฝนตกหนักจะไม่มีที่หลบฝน': 'Wide open lawn with no shelter from heavy rain',
+    'ทางลาด Skywalk': 'Skywalk Ramp',
+    'ทางลาดเหล็ก Universal Design อำนวยความสะดวกให้วีลแชร์และทุกคน': 'Universal Design steel ramp for wheelchairs and everyone',
+    'ดงพงหญ้าชุ่มน้ำ': 'Wetland Reeds',
+    'ที่อยู่อาศัยของนกน้ำและตัวเงินตัวทองเจ้าถิ่นสวนเบญฯ': 'Home to water birds and the park\'s monitor lizards',
+    'จุดชมนกกระเต็น': 'Kingfisher Lookout',
+    'หอส่องนกชมนกยางเปีย นกกระเต็นอกขาว และนกอีลุ้ม': 'Birdwatching tower: egrets, kingfishers and watercocks',
+    'โกดังยาสูบ 5': 'Tobacco Warehouse 5',
+    'อาคารโกดังเก่าแก่สมัยโรงงานยาสูบ อนุรักษ์สถาปัตยกรรมโมเดิร์น': 'Old tobacco factory warehouse, preserved modernist architecture',
+    'ดงต้นกกบำบัดน้ำ': 'Reed Water Filter',
+    'แนวต้นกกกรองน้ำเสียจากคลองไผ่สิงโตเข้าสู่สวน': 'Reeds filter water from Khlong Phai Sing To into the park',
+    'จุดชมยอดไม้ Skywalk': 'Treetop Skywalk',
+    'สะพานลอยฟ้าสูงเหนือยอดไม้ มองเห็นวิวตึกระฟ้าใจกลางอโศก': 'Elevated walkway above the trees with Asok skyline views',
+    'ดงจามจุรีอนุรักษ์': 'Rain Tree Grove',
+    'ต้นจามจุรีโบราณอายุกว่า 50 ปี แผ่กิ่งก้านให้ร่มเงาเย็นสบาย': 'Rain trees over 50 years old giving cool shade',
+    'ศูนย์กีฬาในร่ม': 'Indoor Sports Hall',
+    'โกดังปรับปรุงเป็นสนามแบดมินตัน พิกเคิลบอล และบาสเกตบอล': 'Warehouse turned badminton, pickleball and basketball courts',
+    'ลานสเก็ตบอร์ด': 'Skate Park',
+    'สนามโรลเลอร์เบลดและ Skate Park ยอดฮิตของวัยรุ่น': 'Popular rollerblade and skate park',
+    'ลานกีฬาเปิดโล่ง': 'Open Courts',
+    'สนามสตรีทบาสเกตบอลกลางแจ้ง': 'Outdoor street basketball court',
+    'อัฒจันทร์กลางแจ้ง': 'Outdoor Amphitheatre',
+    'ขั้นบันไดหญ้าทรงกลม สถานที่จัดแสดงดนตรีในสวน': 'Round grass steps for concerts in the park',
+    'บันไดเวทีอัฒจันทร์': 'Amphitheatre Stairs',
+    'ทางขึ้นลงเวทีกลางแจ้ง': 'Steps to the outdoor stage',
+    'ลู่วิ่งรอบทะเลสาบ': 'Lake Running Track',
+    'ลู่วิ่งยางสังเคราะห์สีฟ้าเลียบผิวน้ำทะเลสาบใหญ่': 'Blue rubber track along the great lake',
+    'ลานพลาซ่าริมน้ำ': 'Lakeside Plaza',
+    'ลานจัดกิจกรรมกลางแจ้ง ลมพัดโกรกจากบึงน้ำ': 'Outdoor event plaza with breezes off the lake',
+    'ศาลาริมน้ำเบญจกิตติ': 'Benjakitti Lakeside Pavilion',
+    'จุดเส้นชัย ชมวิวพระอาทิตย์ตกดินสะท้อนเงาตึกสูงกรุงเทพฯ': 'Finish line: sunset over the Bangkok skyline',
+    // ladders & snakes
+    '🚲 เช่าจักรยาน ปั่นเข้าสู่เลนเฉพาะฉิวยาว!': '🚲 Rented a bike and zoomed down the bike lane!',
+    '🪵 ข้ามสะพานไม้ลอยน้ำ ลัดตัดตรงสู่ใจกลางบึง!': '🪵 Crossed the floating boardwalk straight to the wetland!',
+    '🌉 เดินขึ้น Skywalk ลอยฟ้า ลัดข้ามบึงน้ำสู่เรือนยอดไม้!': '🌉 Took the Skywalk over the water to the treetops!',
+    '🦜 ส่องพบนกกระเต็น เดินลัดเลาะตามทางดูนกสู่ดงจามจุรี!': '🦜 Spotted a kingfisher and followed the bird trail to the rain trees!',
+    '🏭 เดินทะลุโกดังยาสูบติดแอร์ ลัดเข้าสู่ศูนย์กีฬา!': '🏭 Cut through the air-conditioned warehouse to the sports hall!',
+    '🌳 เดินใต้ร่มเงาต้นจามจุรีโบราณ สปีดลัดสู่อัฒจันทร์!': '🌳 Sped under the rain trees to the amphitheatre!',
+    '🏃 สปีดบนลู่วิ่งยางสังเคราะห์ พุ่งตรงสู่ทะเลสาบใหญ่!': '🏃 Sprinted down the track straight to the great lake!',
+    '🌧️ พายุฝนตกกระหน่ำกลางลานโล่ง ต้องวิ่งหลบกลับศาลาทางเข้า!': '🌧️ Caught in a storm on the open lawn, ran back to the entrance!',
+    '🦎 "น้องเหี้ย" ขนาดยักษ์นอนขวางสะพานไม้ ตกใจถอยหลัง!': '🦎 A giant monitor lizard blocked the boardwalk, backed off in fright!',
+    '🌾 หลงเข้าไปในดงต้นกกบำบัดน้ำ หาทางออกไม่เจอ!': '🌾 Got lost in the reed beds!',
+    '🛹 สะดุดขอบลานสเก็ตบอร์ด เจ็บข้อเท้า ต้องนั่งพักปฐมพยาบาล!': '🛹 Tripped at the skate park and sat out for first aid!',
+    '🎭 ก้าวพลาดสะดุดขั้นบันไดหญ้าอัฒจันทร์กลางแจ้ง!': '🎭 Missed a step on the amphitheatre stairs!',
+    '☀️ แดดบ่ายเผากลางลานทะเลสาบ หน้ามืดแวะพักดื่มน้ำ!': '☀️ Too much afternoon sun, stopped for a drink!',
+    // stamps & bots
+    'สวนสุนัข': 'Dog Park',
+    'จามจุรีโบราณ': 'Ancient Rain Tree',
+    'โกดังศูนย์กีฬา': 'Sports Warehouse',
+    'ทะเลสาบเบญจกิตติ': 'Benjakitti Lake',
+    'บอทกระรอกสวน 🐿️': 'Squirrel Bot 🐿️',
+    'บอทนกกระเต็น 🦜': 'Kingfisher Bot 🦜',
+    'บอทน้องเหี้ยเจ้าถิ่น 🦎': 'Monitor Lizard Bot 🦎',
+  }).sort((a, b) => b[0].length - a[0].length);
+  const REV = EN.map(([t, e]) => [e, t]).sort((a, b) => b[0].length - a[0].length);
+  const THAI = /[฀-๿]/;
+  const ATTRS = ['title', 'aria-label', 'placeholder'];
+  let lang = 'th';
+  try { lang = localStorage.getItem('lang') === 'en' ? 'en' : 'th'; } catch {}
+
+  const swap = (s, dict) => { for (const [a, b] of dict) if (s.includes(a)) s = s.split(a).join(b); return s; };
+  const tx = s => (lang === 'en' && THAI.test(s)) ? swap(s, EN) : s;
+  const memo = new WeakMap(); // text node -> { src: original Thai, out: last value we wrote }
+
+  function walk(n) {
+    if (n.nodeType === 3) {
+      let m = memo.get(n);
+      if (!m || n.nodeValue !== m.out) { m = { src: n.nodeValue }; memo.set(n, m); }
+      m.out = tx(m.src);
+      if (n.nodeValue !== m.out) n.nodeValue = m.out;
+      return;
+    }
+    if (n.nodeType !== 1 || n.tagName === 'SCRIPT' || n.tagName === 'STYLE') return;
+    for (const a of ATTRS) {
+      if (!n.hasAttribute(a)) continue;
+      const k = 'th' + a.replace('-', '');
+      const v = n.getAttribute(a);
+      if (n.dataset[k + 'Out'] !== v) n.dataset[k] = v;
+      const out = tx(n.dataset[k]);
+      n.dataset[k + 'Out'] = out;
+      if (v !== out) n.setAttribute(a, out);
+    }
+    if (n.tagName === 'INPUT' && n.type === 'text' && n.value) n.value = lang === 'en' ? tx(n.value) : swap(n.value, REV);
+    n.childNodes.forEach(walk);
+  }
+
+  new MutationObserver(list => {
+    if (lang !== 'en') return;
+    for (const r of list) {
+      if (r.type === 'childList') r.addedNodes.forEach(walk);
+      else walk(r.target);
+    }
+  }).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+
+  const nativeConfirm = window.confirm.bind(window);
+  window.confirm = msg => nativeConfirm(tx(String(msg)));
+
+  const btn = document.getElementById('btnLang');
+  function apply() {
+    document.documentElement.lang = lang;
+    btn.textContent = lang === 'en' ? 'ไทย' : 'EN';
+    btn.setAttribute('aria-label', lang === 'en' ? 'เปลี่ยนเป็นภาษาไทย' : 'Switch to English');
+    walk(document.body);
+  }
+  btn.addEventListener('click', () => {
+    lang = lang === 'en' ? 'th' : 'en';
+    try { localStorage.setItem('lang', lang); } catch {}
+    apply();
+  });
+  apply();
 })();
 </script>
 </body>
