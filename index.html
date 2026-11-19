@@ -1459,6 +1459,7 @@ class NetworkSession {
     this.myAvatar = avatar;
     this.players = [];
     this.onJoined = null;
+    this.started = false; // host: no new players once the game is on
     this.ready = false;
 
     // 1. Local BroadcastChannel for instant same-browser multi-tab sync
@@ -1514,7 +1515,7 @@ class NetworkSession {
 
     if (this.isHost) {
       if (data.type === 'JOIN') {
-        if (this.players.length < 4 && !this.players.some(p => p.id === data.id)) {
+        if (!this.started && this.players.length < 4 && !this.players.some(p => p.id === data.id)) {
           this.players.push({
             id: data.id,
             name: data.name,
@@ -1603,6 +1604,7 @@ class NetworkSession {
   }
 
   broadcastStart() {
+    this.started = true;
     this.send({ type: 'START', players: this.players });
   }
 
@@ -1861,7 +1863,7 @@ document.getElementById('btnJoinRoom').onclick = () => {
     netSession.leave();
     joinBtn.disabled = false;
     statusMsg.className = statusMsg.className.replace('text-emerald-800', 'text-rose-600');
-    statusMsg.textContent = 'ไม่พบห้องนี้ หรือห้องเต็มแล้ว ตรวจสอบ Game PIN อีกครั้ง';
+    statusMsg.textContent = 'ไม่พบห้องนี้ ห้องเต็ม หรือเกมเริ่มไปแล้ว ตรวจสอบ Game PIN อีกครั้ง';
   }, 6000);
   const onJoined = () => {
     clearTimeout(timeout);
@@ -2056,6 +2058,7 @@ function restoreGame(state, mode) {
     netSession.myId = saved.myId;
     netSession.players = saved.state.players.map((p, i) => ({ id: p.id, name: p.name, avatar: p.avatar, seat: i }));
     restoreGame(saved.state, 'host');
+    netSession.started = true;
   } else {
     netSession.init(saved.pin, false, saved.name, saved.avatar);
     netSession.myId = saved.myId;
@@ -2125,7 +2128,7 @@ function restoreGame(state, mode) {
     'กรุณาใส่รหัส Game PIN 6 หลักให้ครบถ้วน': 'Please enter the full 6-digit Game PIN',
     'คัดลอก PIN ': 'Copied PIN ',
     'กำลังค้นหาห้อง...': 'Looking for room...',
-    'ไม่พบห้องนี้ หรือห้องเต็มแล้ว ตรวจสอบ Game PIN อีกครั้ง': 'Room not found or full. Check the Game PIN',
+    'ไม่พบห้องนี้ ห้องเต็ม หรือเกมเริ่มไปแล้ว ตรวจสอบ Game PIN อีกครั้ง': 'Room not found, full, or already playing. Check the Game PIN',
     ' แล้ว!': '!',
     ' (คุณ)': ' (you)',
     'เชิญ ': 'Remove ',
