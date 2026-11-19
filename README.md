@@ -10,5 +10,5 @@
    - **เล่นเครื่องเดียวกัน (Pass & Play)**: 2-4 คน ผลัดกันทอยลูกเต๋าบนจอเดียว
 
 ## 🚀 วิธีเปิดเล่น
-- เปิดไฟล์ `benjakitti-snakes-ladders.html` บนเบราว์เซอร์ได้ทันที
-- หรือรันผ่านเว็บเซิร์ฟเวอร์: `npx serve .` แล้วเปิด `http://localhost:3000/benjakitti-snakes-ladders.html`
+- เปิดไฟล์ `index.html` บนเบราว์เซอร์ได้ทันที
+- หรือรันผ่านเว็บเซิร์ฟเวอร์: `npx serve .` แล้วเปิด `http://localhost:3000`
