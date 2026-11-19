@@ -1458,6 +1458,7 @@ class NetworkSession {
     this.myName = name;
     this.myAvatar = avatar;
     this.players = [];
+    this.onJoined = null;
     this.ready = false;
 
     // 1. Local BroadcastChannel for instant same-browser multi-tab sync
@@ -1548,6 +1549,7 @@ class NetworkSession {
         }
         const myIdx = this.players.findIndex(p => p.id === this.myId);
         if (myIdx >= 0) this.mySeat = myIdx;
+        if (myIdx >= 0 && this.onJoined) { const cb = this.onJoined; this.onJoined = null; cb(); }
         renderHostLobbyPlayers();
       } else if (data.type === 'STATE' && data.to === this.myId && this.joinRetryTimer && Array.isArray(data.state?.players) && data.state.players.length) {
         clearInterval(this.joinRetryTimer);
@@ -1841,7 +1843,10 @@ document.getElementById('btnJoinRoom').onclick = () => {
     statusMsg.textContent = 'กรุณาใส่รหัส Game PIN 6 หลักให้ครบถ้วน';
     return;
   }
-  statusMsg.textContent = '';
+  const joinBtn = document.getElementById('btnJoinRoom');
+  statusMsg.className = statusMsg.className.replace('text-rose-600', 'text-emerald-800');
+  statusMsg.textContent = 'กำลังค้นหาห้อง...';
+  joinBtn.disabled = true;
 
   const myId = 'guest_' + Math.random().toString(36).slice(2, 7);
   netSession.init(pin, false, name, avatar, () => {
@@ -1849,11 +1854,26 @@ document.getElementById('btnJoinRoom').onclick = () => {
   });
   netSession.startGuestJoinRetry(myId, name, avatar);
 
-  panelJoin.classList.add('hidden');
-  panelGuestWaiting.classList.remove('hidden');
-  document.getElementById('guestDisplayPin').textContent = `${pin.slice(0,3)} ${pin.slice(3)}`;
-  document.getElementById('guestMyAvatar').textContent = avatar;
-  document.getElementById('guestMyName').textContent = name;
+  // Only a live host answers JOIN with a roster containing us; no answer means no such room (or it is full)
+  const timeout = setTimeout(() => {
+    if (netSession.onJoined !== onJoined) return; // user already left or started something else
+    netSession.onJoined = null;
+    netSession.leave();
+    joinBtn.disabled = false;
+    statusMsg.className = statusMsg.className.replace('text-emerald-800', 'text-rose-600');
+    statusMsg.textContent = 'ไม่พบห้องนี้ หรือห้องเต็มแล้ว ตรวจสอบ Game PIN อีกครั้ง';
+  }, 6000);
+  const onJoined = () => {
+    clearTimeout(timeout);
+    joinBtn.disabled = false;
+    statusMsg.textContent = '';
+    panelJoin.classList.add('hidden');
+    panelGuestWaiting.classList.remove('hidden');
+    document.getElementById('guestDisplayPin').textContent = `${pin.slice(0,3)} ${pin.slice(3)}`;
+    document.getElementById('guestMyAvatar').textContent = avatar;
+    document.getElementById('guestMyName').textContent = name;
+  };
+  netSession.onJoined = onJoined;
 };
 
 document.getElementById('btnLeaveLobby').onclick = () => {
@@ -2104,6 +2124,8 @@ function restoreGame(state, mode) {
     'เพื่อนร่วมทาง': 'Buddy',
     'กรุณาใส่รหัส Game PIN 6 หลักให้ครบถ้วน': 'Please enter the full 6-digit Game PIN',
     'คัดลอก PIN ': 'Copied PIN ',
+    'กำลังค้นหาห้อง...': 'Looking for room...',
+    'ไม่พบห้องนี้ หรือห้องเต็มแล้ว ตรวจสอบ Game PIN อีกครั้ง': 'Room not found or full. Check the Game PIN',
     ' แล้ว!': '!',
     ' (คุณ)': ' (you)',
     'เชิญ ': 'Remove ',
