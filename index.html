@@ -717,7 +717,7 @@
       <li>ทอยได้ 6 ได้ทอยอีกครั้ง แต่ถ้าได้ 6 สามครั้งติด จะถูกข้ามตาถัดไป</li>
       <li>🎯 ต้องทอยได้พอดีถึงช่อง 100 ถ้าเกินจะอยู่ที่เดิม</li>
       <li>🪜 บันไดพาขึ้น 🐍 งูพาลง</li>
-      <li>🎁 ลูกเต๋าตกช่องของขวัญ ได้การ์ด 1 ใบ ถือได้สูงสุด 2 ใบ</li>
+      <li>🎁 ลูกเต๋าตกช่องของขวัญ ได้การ์ดสุ่ม 1 ใบ ถือได้สูงสุด 2 ใบ</li>
       <li>ใช้การ์ดได้ตาละ 1 ใบ: การ์ดเดินใช้คู่กับการทอย การ์ดโจมตีใช้แทนการทอย</li>
       <li>💥 เดินไปตกช่องเดียวกับคนอื่น เขาถอยหลัง 3 ช่อง</li>
       <li>🛡️ ถ้าเขามีโล่ คุณเด้งกลับ 3 ช่องแทน</li>
@@ -1021,12 +1021,12 @@ function targetsFor(pl, c) {
   });
 }
 const playable = (pl, c) => CARDS[c].kind === 'attack' ? targetsFor(pl, c).length > 0 : c === 'trap' ? pl.pos >= 1 && pl.pos < 90 : c !== 'shield';
-// Deterministic so every online client draws the same card without extra messages
-function drawCard(pl, target) {
+// r: random number in [0,1) sent by the host with the roll, so every online client draws the same card
+function drawCard(pl, r) {
   const ps = gameState.players, last = ps.length > 1 && ps.every(o => o === pl || o.pos > pl.pos);
   const pool = last ? ['shield', 'skywalk', 'double', 'swap'] // comeback help
     : ['double', 'skywalk', 'bike', 'trap', 'swap', 'snake_call', 'gust', 'shield', 'shield'];
-  return pool[(ps.reduce((s, o, i) => s + o.pos * (i + 1), 0) + target) % pool.length];
+  return pool[Math.floor(r * pool.length) % pool.length];
 }
 // Bot choice: attack the leader ahead when possible, else any move card
 function botCard(pl) {
@@ -1219,8 +1219,7 @@ setInterval(() => {
   document.getElementById('turnStatusBadge').textContent = `${isMyTurn() ? 'ทอยเต๋าได้เลย 🎲' : 'กำลังรอ...'} ⏱ ${left}s`;
   if (left === 0 && gameState.mode === 'host') {
     const v = 1 + Math.floor(Math.random() * 6);
-    netSession.broadcastRoll(v);
-    handleRoll(v);
+    handleRoll(v, null, undefined, null, netSession.broadcastRoll(v));
   }
 }, 250);
 let isBusy = false;
@@ -1432,7 +1431,7 @@ async function doAttack(turnIdx, card, ti) {
 }
 
 // card: played card id; v2: second die for Double Dice; ti: attack target seat. Host sends all of them so clients agree
-async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6), ti = null) {
+async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6), ti = null, r = Math.random()) {
   if (isBusy || !gameState || gameState.winner != null) return;
   isBusy = true;
   rollSeq++;
@@ -1555,7 +1554,7 @@ async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)
 
   // Card draw: only when the die itself lands on a 🎁 tile
   if (CARD_TILES.includes(target) && hand(pl).length < HAND_MAX) {
-    const c = drawCard(pl, target);
+    const c = drawCard(pl, r);
     hand(pl).push(c);
     sfx.playSkillDraw();
     await sleep(400);
@@ -1611,8 +1610,9 @@ function playTurn(card, target = null) {
     return;
   }
   const v = 1 + Math.floor(Math.random() * 6), v2 = 1 + Math.floor(Math.random() * 6);
-  if (gameState.mode === 'host') netSession.broadcastRoll(v, card, v2, target);
-  handleRoll(v, card, v2, target);
+  const r = Math.random();
+  if (gameState.mode === 'host') netSession.broadcastRoll(v, card, v2, target, r);
+  handleRoll(v, card, v2, target, r);
 }
 document.getElementById('btnRoll').onclick = () => playTurn(armedCard && CARDS[armedCard].kind === 'move' ? armedCard : null);
 
@@ -1828,8 +1828,7 @@ class NetworkSession {
         const v = 1 + Math.floor(Math.random() * 6), v2 = 1 + Math.floor(Math.random() * 6);
         const card = hand(gameState.players[gameState.turn]).includes(data.card) ? data.card : null;
         const target = Number.isInteger(data.target) ? data.target : null;
-        this.broadcastRoll(v, card, v2, target);
-        handleRoll(v, card, v2, target);
+        handleRoll(v, card, v2, target, this.broadcastRoll(v, card, v2, target));
       } else if (data.type === 'PICK_REQ' && pickResolve && gameState.players[gameState.turn].id === data.id) {
         pickDie(data.die);
       } else if (data.type === 'REJOIN' && gameState && !isBusy && gameState.players.some(p => p.id === data.id)) {
@@ -1881,7 +1880,7 @@ class NetworkSession {
       if (gameState.turn !== data.turn) {
         gameState.turn = data.turn;
       }
-      handleRoll(data.roll, data.card, data.v2, data.target);
+      handleRoll(data.roll, data.card, data.v2, data.target, typeof data.r === 'number' ? data.r : 0);
     }
     if (data.type === 'PICK' && !this.isHost && gameState) {
       pickDie(data.die);
@@ -1909,8 +1908,9 @@ class NetworkSession {
     this.send({ type: 'START', players: this.players });
   }
 
-  broadcastRoll(v, card = null, v2 = null, target = null) {
-    this.send({ type: 'ROLL', roll: v, turn: gameState.turn, card, v2, target });
+  broadcastRoll(v, card = null, v2 = null, target = null, r = Math.random()) {
+    this.send({ type: 'ROLL', roll: v, turn: gameState.turn, card, v2, target, r });
+    return r; // caller applies the same card-draw value locally
   }
 
   leave() {
@@ -2620,7 +2620,7 @@ function restoreGame(state, mode) {
     'อยู่ที่เดิม': 'Stays put',
     ' ทอยได้ 6 สามครั้งติด! ข้ามตาถัดไป': ' rolled three 6s in a row! Next turn skipped',
     '🪜 บันไดพาขึ้น 🐍 งูพาลง': '🪜 Ladders take you up, 🐍 snakes take you down',
-    '🎁 ลูกเต๋าตกช่องของขวัญ ได้การ์ด 1 ใบ ถือได้สูงสุด 2 ใบ': '🎁 Land on a gift tile to get a card. Hold at most 2',
+    '🎁 ลูกเต๋าตกช่องของขวัญ ได้การ์ดสุ่ม 1 ใบ ถือได้สูงสุด 2 ใบ': '🎁 Land on a gift tile to get a random card. Hold at most 2',
     'ใช้การ์ดได้ตาละ 1 ใบ: การ์ดเดินใช้คู่กับการทอย การ์ดโจมตีใช้แทนการทอย': 'Play 1 card per turn: move cards go with your roll, attack cards replace your roll',
     '💥 เดินไปตกช่องเดียวกับคนอื่น เขาถอยหลัง 3 ช่อง': '💥 Land on another player and they go back 3 tiles',
     '🛡️ ถ้าเขามีโล่ คุณเด้งกลับ 3 ช่องแทน': '🛡️ If they hold a shield, you bounce back 3 instead',
