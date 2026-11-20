@@ -641,16 +641,6 @@
         <div id="cardHand" class="flex gap-2 mt-2 min-h-[2rem] items-center" aria-label="การ์ดของคุณ"></div>
       </div>
 
-      <!-- Card received popup: auto-hides, click to dismiss -->
-      <div id="cardPopup" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onclick="this.classList.add('hidden')" role="alert">
-        <div class="game-card animate-in rounded-3xl shadow-xl border-2 border-amber-300 bg-white px-6 py-5 max-w-xs w-full text-center">
-          <p id="cardPopupWho" class="text-sm font-bold text-emerald-900"></p>
-          <div id="cardPopupIcon" class="text-6xl my-2"></div>
-          <p id="cardPopupName" class="text-lg font-extrabold text-amber-700"></p>
-          <p id="cardPopupDesc" class="text-xs text-emerald-950 mt-1"></p>
-        </div>
-      </div>
-
       <!-- Live Event Toast Bubble (Punchy & Fun) -->
       <div id="eventToast" class="game-card px-4 py-3 rounded-2xl shadow border border-emerald-200 flex items-center gap-3">
         <span id="eventIcon" class="text-3xl flex-shrink-0">🚩</span>
@@ -679,6 +669,17 @@
 <!-- ======================================================== -->
 <!-- MODAL: แผนที่จริง & ข้อมูลสถานที่สวนเบญจกิตติ (Park Guide) -->
 <!-- ======================================================== -->
+<!-- Card received popup: auto-hides, click to dismiss -->
+<div id="cardPopup" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onclick="this.classList.add('hidden')" role="alert">
+  <div class="game-card animate-in rounded-3xl shadow-xl border-2 border-amber-300 bg-white px-6 py-5 max-w-xs w-full text-center">
+    <p id="cardPopupWho" class="text-sm font-bold text-emerald-900"></p>
+    <div id="cardPopupIcon" class="text-6xl my-2"></div>
+    <p id="cardPopupName" class="text-lg font-extrabold text-amber-700"></p>
+    <p id="cardPopupDesc" class="text-xs text-emerald-950 mt-1"></p>
+  </div>
+</div>
+
+
 <div id="modalParkGuide" class="hidden fixed inset-0 z-50 bg-emerald-950/70 backdrop-blur-md flex items-center justify-center p-4">
   <div class="game-card w-full max-w-lg max-h-[85vh] rounded-[32px] p-6 shadow-2xl flex flex-col animate-in">
     <div class="flex items-center justify-between pb-3 border-b border-emerald-200 mb-4">
