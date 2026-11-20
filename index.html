@@ -633,6 +633,7 @@
             </button>
           </div>
         </div>
+        <div id="cardHand" class="flex gap-2 mt-2 min-h-[2rem] items-center" aria-label="การ์ดของคุณ"></div>
       </div>
 
       <!-- Live Event Toast Bubble (Punchy & Fun) -->
@@ -912,20 +913,26 @@ const MILESTONES = {
   1:   { name: 'ประตูรัชดาฯ', icon: '🚩', desc: 'จุดสตาร์ทใกล้ MRT ศูนย์สิริกิติ์ ทางเข้าหลักฝั่งถนนรัชดาภิเษก' },
   4:   { name: 'จุดเช่าจักรยาน', icon: '🚲', desc: 'จุดบริการยืม-คืนจักรยาน สำหรับปั่นรอบสวน 1.8 กม.' },
   7:   { name: 'สวนสุนัข Dog Park', icon: '🐕', desc: 'โซนสนามหญ้าเปิดโล่งสำหรับพาสัตว์เลี้ยงมาวิ่งเล่น' },
+  17:  { name: 'สวนดอกไม้ริมทาง', icon: '🌸', desc: 'แปลงดอกไม้ประจำฤดูริมทางเดิน จุดถ่ายรูปยอดนิยม' },
   13:  { name: 'สะพานไม้บึงบัว', icon: '🪵', desc: 'สะพานไม้ลอยน้ำลัดเลาะผ่านดงบัวหลวงและเกาะพืชน้ำ' },
   20:  { name: 'จุดชมเกาะพืชน้ำ', icon: '🌾', desc: 'เกาะดินทรงกลมที่ปลูกพืชซับน้ำหลากตามแนวคิด Sponge City' },
   27:  { name: 'ลานกว้างไร้เงา', icon: '🌧️', desc: 'ลานสนามหญ้ากว้างโล่ง ฝนตกหนักจะไม่มีที่หลบฝน' },
   33:  { name: 'ทางลาด Skywalk', icon: '♿', desc: 'ทางลาดเหล็ก Universal Design อำนวยความสะดวกให้วีลแชร์และทุกคน' },
+  36:  { name: 'ลานโยคะริมบึง', icon: '🧘', desc: 'ลานไม้ริมน้ำสำหรับโยคะและยืดเหยียดยามเช้า' },
+  45:  { name: 'จุดเติมน้ำดื่ม', icon: '💧', desc: 'ตู้น้ำดื่มฟรี พกขวดมาเติมได้ ลดขยะพลาสติก' },
   40:  { name: 'ดงพงหญ้าชุ่มน้ำ', icon: '🦎', desc: 'ที่อยู่อาศัยของนกน้ำและตัวเงินตัวทองเจ้าถิ่นสวนเบญฯ' },
   42:  { name: 'จุดชมนกกระเต็น', icon: '🦜', desc: 'หอส่องนกชมนกยางเปีย นกกระเต็นอกขาว และนกอีลุ้ม' },
   50:  { name: 'โกดังยาสูบ 5', icon: '🏭', desc: 'อาคารโกดังเก่าแก่สมัยโรงงานยาสูบ อนุรักษ์สถาปัตยกรรมโมเดิร์น' },
   54:  { name: 'ดงต้นกกบำบัดน้ำ', icon: '🌾', desc: 'แนวต้นกกกรองน้ำเสียจากคลองไผ่สิงโตเข้าสู่สวน' },
   57:  { name: 'จุดชมยอดไม้ Skywalk', icon: '🌉', desc: 'สะพานลอยฟ้าสูงเหนือยอดไม้ มองเห็นวิวตึกระฟ้าใจกลางอโศก' },
   62:  { name: 'ดงจามจุรีอนุรักษ์', icon: '🌳', desc: 'ต้นจามจุรีโบราณอายุกว่า 50 ปี แผ่กิ่งก้านให้ร่มเงาเย็นสบาย' },
+  66:  { name: 'ลานปิกนิก', icon: '🧺', desc: 'สนามหญ้าร่มรื่นสำหรับปูเสื่อปิกนิกกับครอบครัว' },
+  71:  { name: 'คาเฟ่ในโกดัง', icon: '☕', desc: 'ร้านกาแฟในโกดังเก่า แวะพักชาร์จพลัง' },
   69:  { name: 'ศูนย์กีฬาในร่ม', icon: '🏟️', desc: 'โกดังปรับปรุงเป็นสนามแบดมินตัน พิกเคิลบอล และบาสเกตบอล' },
   74:  { name: 'ลานสเก็ตบอร์ด', icon: '🛹', desc: 'สนามโรลเลอร์เบลดและ Skate Park ยอดฮิตของวัยรุ่น' },
   76:  { name: 'ลานกีฬาเปิดโล่ง', icon: '🏀', desc: 'สนามสตรีทบาสเกตบอลกลางแจ้ง' },
   81:  { name: 'อัฒจันทร์กลางแจ้ง', icon: '🎭', desc: 'ขั้นบันไดหญ้าทรงกลม สถานที่จัดแสดงดนตรีในสวน' },
+  84:  { name: 'จุดถ่ายรูปริมทะเลสาบ', icon: '📸', desc: 'มุมถ่ายรูปวิวทะเลสาบกับตึกระฟ้าอโศก' },
   89:  { name: 'บันไดเวทีอัฒจันทร์', icon: '🪜', desc: 'ทางขึ้นลงเวทีกลางแจ้ง' },
   92:  { name: 'ลู่วิ่งรอบทะเลสาบ', icon: '🏃', desc: 'ลู่วิ่งยางสังเคราะห์สีฟ้าเลียบผิวน้ำทะเลสาบใหญ่' },
   97:  { name: 'ลานพลาซ่าริมน้ำ', icon: '☀️', desc: 'ลานจัดกิจกรรมกลางแจ้ง ลมพัดโกรกจากบึงน้ำ' },
@@ -952,6 +959,24 @@ const SNAKES = {
   89: [53, '🎭 ก้าวพลาดสะดุดขั้นบันไดหญ้าอัฒจันทร์กลางแจ้ง!'],
   97: [78, '☀️ แดดบ่ายเผากลางลานทะเลสาบ หน้ามืดแวะพักดื่มน้ำ!'],
 };
+
+// Item cards: landing (by die) on a 🎁 tile draws one; max 3 in hand, 1 played per turn
+const CARD_TILES = [7, 17, 20, 36, 45, 57, 66, 71, 84, 92];
+const CARDS = {
+  double: { icon: '🎲', name: 'ลูกเต๋าคู่', desc: 'ทอย 2 ลูก เลือกลูกที่ดีกว่าให้อัตโนมัติ' },
+  boost:  { icon: '⚡', name: 'วิ่งเร็ว +2', desc: 'เดินเพิ่ม 2 ช่องในตานี้' },
+  shield: { icon: '🛡️', name: 'โล่กันภัย', desc: 'กันงูหรือการชนได้ 1 ครั้ง (ใช้อัตโนมัติ)' },
+};
+const hand = pl => pl.cards || (pl.cards = []);
+const takeCard = (pl, c) => { const h = hand(pl), k = h.indexOf(c); if (k < 0) return false; h.splice(k, 1); return true; };
+// Where a die value really leaves you after ladders/snakes (shield cancels the snake)
+const landing = (pl, d) => { const t = Math.min(100, pl.pos + d); return LADDERS[t] ? LADDERS[t][0] : SNAKES[t] && !hand(pl).includes('shield') ? SNAKES[t][0] : t; };
+// Deterministic so every online client draws the same card without extra messages
+function drawCard(pl, target) {
+  const ps = gameState.players, last = ps.every(o => o === pl || o.pos > pl.pos);
+  const pool = last && ps.length > 1 ? ['shield', 'boost'] : ['double', 'boost', 'shield']; // comeback help
+  return pool[(ps.reduce((s, o, i) => s + o.pos * (i + 1), 0) + target) % pool.length];
+}
 
 // 6 Collectible Passport Stamps of Benjakitti
 const PASSPORT_STAMPS = [
@@ -993,6 +1018,7 @@ for (let row = 0; row < 10; row++) {
     if (isLadder) badge = '<span class="tile-badge text-emerald-800">🪜</span>';
     else if (isSnake) badge = '<span class="tile-badge text-rose-800">🐍</span>';
     else if (n === 100) badge = '<span class="tile-badge text-amber-800">🏆</span>';
+    else if (CARD_TILES.includes(n)) badge = '<span class="tile-badge">🎁</span>';
 
     el.innerHTML = `
       <div class="tile-header">
@@ -1136,6 +1162,7 @@ setInterval(() => {
   }
 }, 250);
 let isBusy = false;
+let armedCard = null; // card the current player tapped to play with this roll
 const pawns = [];
 let botTimer = null;
 
@@ -1211,6 +1238,14 @@ function updateHUD() {
   const btnRoll = document.getElementById('btnRoll');
   btnRoll.disabled = isBusy || !live || !myTurn || rollPending;
 
+  // Card hand of the player whose turn it is
+  const canPlay = myTurn && live && !isBusy && !rollPending;
+  if (!canPlay) armedCard = null;
+  document.getElementById('cardHand').innerHTML = hand(cur).map(c => `
+    <button data-card="${c}" title="${CARDS[c].desc}" ${canPlay && c !== 'shield' ? '' : 'disabled'}
+      class="flex-1 px-2 py-1.5 rounded-xl text-xs font-bold border-2 transition ${armedCard === c ? 'bg-amber-300 border-amber-600' : 'bg-white border-emerald-200'} disabled:opacity-60">
+      ${CARDS[c].icon} ${CARDS[c].name}</button>`).join('') || '<span class="text-xs text-emerald-700 font-semibold">ลงช่อง 🎁 เพื่อรับการ์ด</span>';
+
   // Active pawn bounce
   pawns.forEach((p, i) => p.classList.toggle('active', i === gameState.turn && live));
 
@@ -1243,7 +1278,8 @@ function updateHUD() {
     botTimer = setTimeout(() => {
       botTimer = null;
       if (gameState && gameState.winner == null && !isBusy && gameState.players[gameState.turn].bot) {
-        handleRoll(1 + Math.floor(Math.random() * 6));
+        const bot = gameState.players[gameState.turn];
+        handleRoll(1 + Math.floor(Math.random() * 6), hand(bot).find(c => c !== 'shield'));
       }
     }, 900);
   }
@@ -1259,22 +1295,33 @@ function isMyTurn() {
   return false;
 }
 
-async function handleRoll(v) {
+// card: played card id (or none); v2: second die for Double Dice, sent by the host so all clients agree
+async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)) {
   if (isBusy || !gameState || gameState.winner != null) return;
   isBusy = true;
   rollSeq++;
   rollPending = false;
+  armedCard = null;
   updateHUD();
 
   const turnIdx = gameState.turn;
   const pl = gameState.players[turnIdx];
+  if (card === 'shield' || !takeCard(pl, card)) card = null; // shield is passive; ignore cards not in hand
 
   // 1. Animate dice
   await animateDiceRoll(v);
+  if (card === 'double') {
+    const best = landing(pl, v2) > landing(pl, v) ? v2 : v;
+    showToast(`${pl.name} ทอยได้ ${v} กับ ${v2}, ใช้ ${best}`, '🎲', CARDS.double.name);
+    await sleep(900);
+    v = best;
+    showDiceFace(v);
+  }
+  const steps = v + (card === 'boost' ? 2 : 0);
 
   // 2. Step-by-step movement
-  const target = Math.min(100, pl.pos + v);
-  showToast(`${pl.name} ทอยได้ ${v} ก้าว`, '🎲', 'กำลังเดินผ่านเส้นทางสวนป่าเบญจกิตติ...');
+  const target = Math.min(100, pl.pos + steps);
+  showToast(`${pl.name} ทอยได้ ${v} ก้าว`, '🎲', card ? `${CARDS[card].icon} ${CARDS[card].name}` : 'กำลังเดินผ่านเส้นทางสวนป่าเบญจกิตติ...');
   for (let n = pl.pos + 1; n <= target; n++) {
     pl.pos = n;
     placePawn(turnIdx, n);
@@ -1294,6 +1341,10 @@ async function handleRoll(v) {
     placePawn(turnIdx, to);
     checkPassportStamps(to);
     await sleep(350);
+  } else if (SNAKES[target] && takeCard(pl, 'shield')) {
+    sfx.playPop();
+    showToast(`🛡️ ${pl.name} ใช้โล่กันงู!`, '🛡️', 'ไม่ต้องถอยกลับ');
+    await sleep(600);
   } else if (SNAKES[target]) {
     const [to, msg] = SNAKES[target];
     sfx.playSnake();
@@ -1305,6 +1356,34 @@ async function handleRoll(v) {
   } else {
     const m = MILESTONES[target];
     showToast(`${pl.name} เดินถึง ${m ? m.name : zoneOf(target).name}`, m ? m.icon : '🌲', m ? m.desc : 'เส้นทางเดินเท้าชมธรรมชาติสวนป่า');
+  }
+
+  // Bump: landing on a rival pushes them back 3, unless their shield bounces you instead (never chains)
+  const j = pl.pos > 0 && pl.pos < 100 ? gameState.players.findIndex((o, k) => k !== turnIdx && o.pos === pl.pos) : -1;
+  if (j >= 0) {
+    const o = gameState.players[j];
+    await sleep(350);
+    sfx.playSnake();
+    if (takeCard(o, 'shield')) {
+      pl.pos = Math.max(0, pl.pos - 3);
+      placePawn(turnIdx, pl.pos);
+      showToast(`🛡️ ${o.name} ใช้โล่! ${pl.name} เด้งกลับ 3 ช่อง`, '🛡️');
+    } else {
+      o.pos = Math.max(0, o.pos - 3);
+      placePawn(j, o.pos);
+      showToast(`💥 ${pl.name} ชน ${o.name} ถอยหลัง 3 ช่อง!`, '💥');
+    }
+    await sleep(700);
+  }
+
+  // Card draw: only when the die itself lands on a 🎁 tile
+  if (CARD_TILES.includes(target) && hand(pl).length < 3) {
+    const c = drawCard(pl, target);
+    hand(pl).push(c);
+    sfx.playPop();
+    await sleep(400);
+    showToast(`🎁 ${pl.name} ได้การ์ด ${CARDS[c].icon} ${CARDS[c].name}!`, CARDS[c].icon, CARDS[c].desc);
+    await sleep(500);
   }
 
   // 4. Check for Winner
@@ -1343,13 +1422,22 @@ document.getElementById('btnRoll').onclick = () => {
   if (gameState.mode === 'guest') {
     // Host is the only dice authority, so a guest click can't race the host's AFK auto-roll
     rollPending = true;
-    netSession.send({ type: 'ROLL_REQ', id: netSession.myId });
+    netSession.send({ type: 'ROLL_REQ', id: netSession.myId, card: armedCard });
     updateHUD();
     return;
   }
-  const v = 1 + Math.floor(Math.random() * 6);
-  if (gameState.mode === 'host') netSession.broadcastRoll(v);
-  handleRoll(v);
+  const v = 1 + Math.floor(Math.random() * 6), v2 = 1 + Math.floor(Math.random() * 6), card = armedCard;
+  if (gameState.mode === 'host') netSession.broadcastRoll(v, card, v2);
+  handleRoll(v, card, v2);
+};
+
+// Tap a card to arm it for this roll; tap again to put it back
+document.getElementById('cardHand').onclick = e => {
+  const b = e.target.closest('button[data-card]');
+  if (!b || b.disabled) return;
+  sfx.playPop();
+  armedCard = armedCard === b.dataset.card ? null : b.dataset.card;
+  updateHUD();
 };
 
 // ==========================================
@@ -1531,9 +1619,10 @@ class NetworkSession {
         }
       } else if (data.type === 'ROLL_REQ' && gameState && gameState.winner == null && !isBusy
                  && gameState.players[gameState.turn].id === data.id) {
-        const v = 1 + Math.floor(Math.random() * 6);
-        this.broadcastRoll(v);
-        handleRoll(v);
+        const v = 1 + Math.floor(Math.random() * 6), v2 = 1 + Math.floor(Math.random() * 6);
+        const card = hand(gameState.players[gameState.turn]).includes(data.card) ? data.card : null;
+        this.broadcastRoll(v, card, v2);
+        handleRoll(v, card, v2);
       } else if (data.type === 'REJOIN' && gameState && !isBusy && gameState.players.some(p => p.id === data.id)) {
         // Reloaded guest asks for the live game; skip while a move animates so positions are final
         this.send({ type: 'STATE', to: data.id, state: { players: gameState.players, turn: gameState.turn, winner: gameState.winner } });
@@ -1583,7 +1672,7 @@ class NetworkSession {
       if (gameState.turn !== data.turn) {
         gameState.turn = data.turn;
       }
-      handleRoll(data.roll);
+      handleRoll(data.roll, data.card, data.v2);
     }
   }
 
@@ -1608,8 +1697,8 @@ class NetworkSession {
     this.send({ type: 'START', players: this.players });
   }
 
-  broadcastRoll(v) {
-    this.send({ type: 'ROLL', roll: v, turn: gameState.turn });
+  broadcastRoll(v, card = null, v2 = null) {
+    this.send({ type: 'ROLL', roll: v, turn: gameState.turn, card, v2 });
   }
 
   leave() {
@@ -2000,7 +2089,7 @@ function updateWinButton() {
 function resetGame() {
   if (!gameState) return;
   readyIds.clear();
-  gameState.players.forEach(p => p.pos = 0);
+  gameState.players.forEach(p => { p.pos = 0; p.cards = []; });
   gameState.turn = 0;
   gameState.winner = null;
   isBusy = false; turnKey = -1; rollPending = false;
@@ -2267,6 +2356,36 @@ function restoreGame(state, mode) {
     '🛹 สะดุดขอบลานสเก็ตบอร์ด เจ็บข้อเท้า ต้องนั่งพักปฐมพยาบาล!': '🛹 Tripped at the skate park and sat out for first aid!',
     '🎭 ก้าวพลาดสะดุดขั้นบันไดหญ้าอัฒจันทร์กลางแจ้ง!': '🎭 Missed a step on the amphitheatre stairs!',
     '☀️ แดดบ่ายเผากลางลานทะเลสาบ หน้ามืดแวะพักดื่มน้ำ!': '☀️ Too much afternoon sun, stopped for a drink!',
+    // cards & bumps
+    'ลูกเต๋าคู่': 'Double Dice',
+    'ทอย 2 ลูก เลือกลูกที่ดีกว่าให้อัตโนมัติ': 'Roll 2 dice, the better one is used',
+    'วิ่งเร็ว +2': 'Boost +2',
+    'เดินเพิ่ม 2 ช่องในตานี้': 'Move 2 extra tiles this turn',
+    'โล่กันภัย': 'Shield',
+    'กันงูหรือการชนได้ 1 ครั้ง (ใช้อัตโนมัติ)': 'Blocks one snake or bump (automatic)',
+    'ลงช่อง 🎁 เพื่อรับการ์ด': 'Land on 🎁 to get a card',
+    'การ์ดของคุณ': 'Your cards',
+    ' กับ ': ' and ',
+    ', ใช้ ': ', using ',
+    ' ใช้โล่กันงู!': ' blocked the snake with a shield!',
+    'ไม่ต้องถอยกลับ': 'No slide back',
+    ' ใช้โล่! ': ' raised a shield! ',
+    ' เด้งกลับ 3 ช่อง': ' bounced back 3 tiles',
+    ' ชน ': ' bumped ',
+    ' ถอยหลัง 3 ช่อง!': ' back 3 tiles!',
+    ' ได้การ์ด ': ' got ',
+    'สวนดอกไม้ริมทาง': 'Flower Garden',
+    'แปลงดอกไม้ประจำฤดูริมทางเดิน จุดถ่ายรูปยอดนิยม': 'Seasonal flower beds by the path, a favourite photo spot',
+    'ลานโยคะริมบึง': 'Lakeside Yoga Deck',
+    'ลานไม้ริมน้ำสำหรับโยคะและยืดเหยียดยามเช้า': 'Waterside deck for yoga and morning stretches',
+    'จุดเติมน้ำดื่ม': 'Water Refill Point',
+    'ตู้น้ำดื่มฟรี พกขวดมาเติมได้ ลดขยะพลาสติก': 'Free drinking water, bring a bottle and cut plastic waste',
+    'ลานปิกนิก': 'Picnic Lawn',
+    'สนามหญ้าร่มรื่นสำหรับปูเสื่อปิกนิกกับครอบครัว': 'Shady lawn for family picnics',
+    'คาเฟ่ในโกดัง': 'Warehouse Café',
+    'ร้านกาแฟในโกดังเก่า แวะพักชาร์จพลัง': 'Coffee in an old warehouse, recharge here',
+    'จุดถ่ายรูปริมทะเลสาบ': 'Lakeside Photo Spot',
+    'มุมถ่ายรูปวิวทะเลสาบกับตึกระฟ้าอโศก': 'Lake view with the Asok skyline',
     // stamps & bots
     'สวนสุนัข': 'Dog Park',
     'จามจุรีโบราณ': 'Ancient Rain Tree',
