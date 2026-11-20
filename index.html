@@ -641,6 +641,16 @@
         <div id="cardHand" class="flex gap-2 mt-2 min-h-[2rem] items-center" aria-label="การ์ดของคุณ"></div>
       </div>
 
+      <!-- Card received popup: auto-hides, click to dismiss -->
+      <div id="cardPopup" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onclick="this.classList.add('hidden')" role="alert">
+        <div class="game-card animate-in rounded-3xl shadow-xl border-2 border-amber-300 bg-white px-6 py-5 max-w-xs w-full text-center">
+          <p id="cardPopupWho" class="text-sm font-bold text-emerald-900"></p>
+          <div id="cardPopupIcon" class="text-6xl my-2"></div>
+          <p id="cardPopupName" class="text-lg font-extrabold text-amber-700"></p>
+          <p id="cardPopupDesc" class="text-xs text-emerald-950 mt-1"></p>
+        </div>
+      </div>
+
       <!-- Live Event Toast Bubble (Punchy & Fun) -->
       <div id="eventToast" class="game-card px-4 py-3 rounded-2xl shadow border border-emerald-200 flex items-center gap-3">
         <span id="eventIcon" class="text-3xl flex-shrink-0">🚩</span>
@@ -1263,6 +1273,18 @@ function showToast(text, icon = '🚶', sub = '') {
   document.getElementById('eventSub').textContent = sub;
 }
 
+function showCardPopup(pl, c) {
+  const el = document.getElementById('cardPopup'), k = CARDS[c];
+  document.getElementById('cardPopupWho').textContent = `🎁 ${pl.name} ได้รับการ์ด!`;
+  document.getElementById('cardPopupIcon').textContent = k.icon;
+  document.getElementById('cardPopupName').textContent = k.name;
+  document.getElementById('cardPopupDesc').textContent = k.desc;
+  el.classList.remove('hidden');
+  const box = el.firstElementChild; box.classList.remove('animate-in'); void box.offsetWidth; box.classList.add('animate-in'); // replay animation
+  clearTimeout(showCardPopup.t);
+  showCardPopup.t = setTimeout(() => el.classList.add('hidden'), 2200);
+}
+
 function checkPassportStamps(pos) {
   PASSPORT_STAMPS.forEach(s => {
     if (pos >= s.tile && !unlockedStamps.has(s.id)) {
@@ -1559,7 +1581,8 @@ async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)
     sfx.playSkillDraw();
     await sleep(400);
     showToast(`🎁 ${pl.name} ได้การ์ด ${CARDS[c].icon} ${CARDS[c].name}!`, CARDS[c].icon, CARDS[c].desc);
-    await sleep(500);
+    showCardPopup(pl, c);
+    await sleep(1800);
   }
 
   // 4. Check for Winner
