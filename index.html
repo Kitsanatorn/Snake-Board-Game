@@ -714,7 +714,8 @@
     </div>
     <ul class="text-sm text-emerald-900 space-y-1.5 list-disc pl-5 mb-4">
       <li>ทอยลูกเต๋า 1 ลูก เดินไปถึงช่อง 100 ก่อนชนะ</li>
-      <li>ทอยได้ 6 ได้ทอยอีกครั้ง</li>
+      <li>ทอยได้ 6 ได้ทอยอีกครั้ง แต่ถ้าได้ 6 สามครั้งติด จะถูกข้ามตาถัดไป</li>
+      <li>🎯 ต้องทอยได้พอดีถึงช่อง 100 ถ้าเกินจะอยู่ที่เดิม</li>
       <li>🪜 บันไดพาขึ้น 🐍 งูพาลง</li>
       <li>🎁 ลูกเต๋าตกช่องของขวัญ ได้การ์ด 1 ใบ ถือได้สูงสุด 2 ใบ</li>
       <li>ใช้การ์ดได้ตาละ 1 ใบ: การ์ดเดินใช้คู่กับการทอย การ์ดโจมตีใช้แทนการทอย</li>
@@ -1006,7 +1007,8 @@ const CARDS = {
 const hand = pl => pl.cards || (pl.cards = []);
 const takeCard = (pl, c) => { const h = hand(pl), k = h.indexOf(c); if (k < 0) return false; h.splice(k, 1); return true; };
 // Where a die value really leaves you after ladders/snakes (shield cancels the snake)
-const landing = (pl, d) => { const t = Math.min(100, pl.pos + d); return LADDERS[t] ? LADDERS[t][0] : SNAKES[t] && !hand(pl).includes('shield') ? SNAKES[t][0] : t; };
+const landing = (pl, d) => { if (pl.pos + d > 100) return pl.pos; const t = pl.pos + d; // exact roll needed to finish
+  return LADDERS[t] ? LADDERS[t][0] : SNAKES[t] && !hand(pl).includes('shield') ? SNAKES[t][0] : t; };
 const snakeBehind = o => Object.keys(SNAKES).map(Number).filter(h => h < o.pos && o.pos - h <= 10).pop();
 // Seats an attack card may hit right now
 function targetsFor(pl, c) {
@@ -1366,6 +1368,19 @@ function isMyTurn() {
   return false;
 }
 
+// Pass the turn; a player marked skip (three 6s in a row) loses that turn once
+function nextTurn() {
+  const ps = gameState.players;
+  ps[gameState.turn].sixes = 0;
+  let t = (gameState.turn + 1) % ps.length;
+  for (let n = 0; n < ps.length && ps[t].skip; n++) {
+    ps[t].skip = false;
+    showToast(`⏸️ ${ps[t].name} ถูกข้ามตานี้`, '⏸️', 'เพราะทอยได้ 6 สามครั้งติด');
+    t = (t + 1) % ps.length;
+  }
+  gameState.turn = t;
+}
+
 // Double Dice pick: local tap, or the host's PICK message online; host/local auto-picks after the AFK time
 let pickResolve = null, earlyPick = null;
 function pickDie(d) { if (pickResolve) pickResolve(d); else earlyPick = d; }
@@ -1435,7 +1450,7 @@ async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)
 
   if (card && CARDS[card].kind === 'attack') {
     await doAttack(turnIdx, card, ti);
-    gameState.turn = (gameState.turn + 1) % ps.length;
+    nextTurn();
     isBusy = false;
     updateHUD();
     return;
@@ -1458,7 +1473,12 @@ async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)
   const steps = v + (card === 'skywalk' ? 2 : 0);
 
   // 2. Step-by-step movement
-  const target = Math.min(100, pl.pos + steps);
+  // Exact roll to finish: overshooting 100 means you stay put
+  if (pl.pos + steps > 100) {
+    showToast(`${pl.name} ทอยได้ ${v} ต้องได้ ${100 - pl.pos} พอดีถึงเส้นชัย`, '🎯', 'อยู่ที่เดิม');
+    await sleep(900);
+  }
+  const target = pl.pos + steps > 100 ? pl.pos : pl.pos + steps;
   showToast(`${pl.name} ทอยได้ ${v} ก้าว`, '🎲', card ? `${CARDS[card].icon} ${CARDS[card].name}` : 'กำลังเดินผ่านเส้นทางสวนป่าเบญจกิตติ...');
   for (let n = pl.pos + 1; n <= target; n++) {
     pl.pos = n;
@@ -1548,10 +1568,17 @@ async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)
     gameState.winner = turnIdx;
     sfx.playWin();
     showWinnerModal(pl);
+  } else if (v === 6 && (pl.sixes = (pl.sixes || 0) + 1) >= 3) {
+    // Third 6 in a row: the move counts, but no extra roll and the next turn is skipped
+    pl.skip = true;
+    showToast(`😵 ${pl.name} ทอยได้ 6 สามครั้งติด! ข้ามตาถัดไป`, '⏸️');
+    await sleep(900);
+    nextTurn();
   } else if (v === 6 || card === 'bike') {
-    showToast(card === 'bike' ? `🚲 ${pl.name} ได้ทอยอีกครั้ง!` : `🎉 ${pl.name} ทอยได้เลข 6! ได้สิทธิ์ทอยเพิ่มอีกครั้ง!`, '🎲', 'หมุนเต๋าต่อได้ทันที');
+    if (v !== 6) pl.sixes = 0;
+    showToast(card === 'bike' && v !== 6 ? `🚲 ${pl.name} ได้ทอยอีกครั้ง!` : `🎉 ${pl.name} ทอยได้เลข 6! ได้สิทธิ์ทอยเพิ่มอีกครั้ง!`, '🎲', 'หมุนเต๋าต่อได้ทันที');
   } else {
-    gameState.turn = (gameState.turn + 1) % ps.length;
+    nextTurn();
   }
 
   isBusy = false;
@@ -2274,7 +2301,7 @@ function updateWinButton() {
 function resetGame() {
   if (!gameState) return;
   readyIds.clear();
-  gameState.players.forEach(p => { p.pos = 0; p.cards = []; p.trap = null; });
+  gameState.players.forEach(p => { p.pos = 0; p.cards = []; p.trap = null; p.sixes = 0; p.skip = false; });
   gameState.turn = 0;
   gameState.winner = null;
   isBusy = false; turnKey = -1; rollPending = false;
@@ -2584,7 +2611,14 @@ function restoreGame(state, mode) {
     'กติกาและการ์ด': 'Rules & cards',
     'กติกา': 'Rules',
     'ทอยลูกเต๋า 1 ลูก เดินไปถึงช่อง 100 ก่อนชนะ': 'Roll 1 die. First to tile 100 wins',
-    'ทอยได้ 6 ได้ทอยอีกครั้ง': 'Roll a 6 and you roll again',
+    'ทอยได้ 6 ได้ทอยอีกครั้ง แต่ถ้าได้ 6 สามครั้งติด จะถูกข้ามตาถัดไป': 'Roll a 6 and you roll again, but three 6s in a row skips your next turn',
+    '🎯 ต้องทอยได้พอดีถึงช่อง 100 ถ้าเกินจะอยู่ที่เดิม': '🎯 You need the exact number to reach 100. Too high and you stay put',
+    ' ถูกข้ามตานี้': ' skips this turn',
+    'เพราะทอยได้ 6 สามครั้งติด': 'for rolling three 6s in a row',
+    ' ต้องได้ ': ', needs exactly ',
+    ' พอดีถึงเส้นชัย': ' to finish',
+    'อยู่ที่เดิม': 'Stays put',
+    ' ทอยได้ 6 สามครั้งติด! ข้ามตาถัดไป': ' rolled three 6s in a row! Next turn skipped',
     '🪜 บันไดพาขึ้น 🐍 งูพาลง': '🪜 Ladders take you up, 🐍 snakes take you down',
     '🎁 ลูกเต๋าตกช่องของขวัญ ได้การ์ด 1 ใบ ถือได้สูงสุด 2 ใบ': '🎁 Land on a gift tile to get a card. Hold at most 2',
     'ใช้การ์ดได้ตาละ 1 ใบ: การ์ดเดินใช้คู่กับการทอย การ์ดโจมตีใช้แทนการทอย': 'Play 1 card per turn: move cards go with your roll, attack cards replace your roll',
