@@ -155,6 +155,32 @@
   .tile.is-ladder { box-shadow: inset 0 0 0 2px rgba(31,122,69,.55), inset 0 -2px 0 rgba(0,0,0,.12); }
   .tile.is-snake  { box-shadow: inset 0 0 0 2px rgba(229,72,77,.6), inset 0 -2px 0 rgba(0,0,0,.12); }
   .tile.is-goal   { background-image: linear-gradient(135deg, #ffe27a, #ffb800); }
+  .tile.is-item-tile {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 45%, #fde68a 100%) !important;
+    box-shadow: inset 0 0 0 2.5px #f59e0b, 0 0 10px rgba(245, 158, 11, .55) !important;
+    position: relative;
+    z-index: 2;
+  }
+  .tile.is-item-tile .tile-num {
+    color: #b45309 !important;
+    font-weight: 900 !important;
+  }
+  .item-badge {
+    font-size: clamp(10px, 1.4vw, 16px) !important;
+    display: inline-block !important;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,.35));
+    animation: itemBounce 2s infinite ease-in-out;
+  }
+  .item-tile-center-icon {
+    font-size: clamp(13px, 2.2vw, 24px) !important;
+    display: inline-block;
+    filter: drop-shadow(0 2px 4px rgba(217,119,6,.4));
+    animation: itemBounce 2s infinite ease-in-out;
+  }
+  @keyframes itemBounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-2px) scale(1.18); }
+  }
   @media (hover: hover) {
     .tile:hover { transform: scale(1.12); z-index: 5; filter: brightness(1.05); box-shadow: 0 8px 18px rgba(0,0,0,.28); }
   }
@@ -205,9 +231,10 @@
     overflow: visible;
   }
 
-  /* Pawns */
-  .tile[data-trap]::after { content: '🪤'; position: absolute; right: 2px; bottom: 1px; font-size: clamp(8px, 1.4vw, 16px); }
-  .pawn.has-shield { box-shadow: 0 0 0 3px #2563eb, 0 2px 6px rgba(0,0,0,.3); }
+  /* Pawns & Traps */
+  .tile[data-trap]::after { content: '🪤'; position: absolute; right: 2px; bottom: 1px; font-size: clamp(12px, 1.8vw, 22px); filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
+  .tile[data-trap] { box-shadow: inset 0 0 0 2.5px #ef4444, 0 0 8px rgba(239,68,68,.5) !important; }
+  .pawn.has-shield { box-shadow: 0 0 0 3.5px #3b82f6, 0 0 10px rgba(59,130,246,.7); }
   .pawn {
     position: absolute;
     width: 6.8%;
@@ -391,7 +418,7 @@
 
     <div class="mb-4 text-left">
       <label class="block text-xs font-bold text-emerald-800 mb-1.5">ชื่อของคุณ</label>
-      <input id="botPlayerName" type="text" maxlength="12" value="นักวิ่งสายชิล" class="w-full px-4 py-2.5 rounded-2xl border-2 border-emerald-200 focus:border-emerald-500 font-bold outline-none bg-white">
+      <input id="botPlayerName" type="text" maxlength="30" value="นักวิ่งสายชิล" class="w-full px-4 py-2.5 rounded-2xl border-2 border-emerald-200 focus:border-emerald-500 font-bold outline-none bg-white">
     </div>
 
     <div class="mb-4 text-left">
@@ -452,7 +479,7 @@
       </div>
       <div class="mb-3 text-left">
         <label class="block text-xs font-bold text-emerald-800 mb-1">ชื่อเล่นของคุณ</label>
-        <input id="inputJoinName" type="text" maxlength="12" placeholder="ใส่ชื่อเล่น" class="w-full px-4 py-2.5 rounded-xl border border-emerald-200 font-bold outline-none bg-white">
+        <input id="inputJoinName" type="text" maxlength="30" placeholder="ใส่ชื่อเล่น" class="w-full px-4 py-2.5 rounded-xl border border-emerald-200 font-bold outline-none bg-white">
       </div>
       <div class="mb-4 text-left">
         <label class="block text-xs font-bold text-emerald-800 mb-1">เลือกตัวละคร</label>
@@ -474,7 +501,7 @@
         </div>
         <div class="mb-3 text-left">
           <label class="block text-xs font-bold text-emerald-800 mb-1">ชื่อ Host</label>
-          <input id="inputHostName" type="text" maxlength="12" value="หัวหน้าทัวร์" class="w-full px-4 py-2.5 rounded-xl border border-emerald-200 font-bold outline-none bg-white">
+          <input id="inputHostName" type="text" maxlength="30" value="หัวหน้าทัวร์" class="w-full px-4 py-2.5 rounded-xl border border-emerald-200 font-bold outline-none bg-white">
         </div>
         <div class="mb-4 text-left">
           <label class="block text-xs font-bold text-emerald-800 mb-1">เลือกตัวละคร</label>
@@ -669,6 +696,35 @@
 <!-- ======================================================== -->
 <!-- MODAL: แผนที่จริง & ข้อมูลสถานที่สวนเบญจกิตติ (Park Guide) -->
 <!-- ======================================================== -->
+<!-- Modal: กล่องสุ่มไอเทม (ใช้ หรือ ทิ้ง) -->
+<div id="modalItemDecision" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="game-card w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center animate-in border-4 border-amber-400 bg-white">
+    <div class="inline-block px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-black uppercase tracking-wider mb-2">🎁 ตกช่องกล่องสุ่มไอเทม!</div>
+    <h3 id="itemDecisionWho" class="font-game text-base font-extrabold text-emerald-950 mb-1"></h3>
+    
+    <div class="my-3 p-4 rounded-2xl bg-gradient-to-b from-amber-50 to-amber-100/70 border-2 border-amber-300">
+      <div id="itemDecisionIcon" class="text-6xl my-1 animate-bounce"></div>
+      <div id="itemDecisionName" class="font-game text-xl font-black text-amber-800"></div>
+      <div id="itemDecisionDesc" class="text-xs font-semibold text-emerald-950 mt-1.5 leading-relaxed"></div>
+    </div>
+
+    <!-- Target selector for attack/swap/trap (hidden by default) -->
+    <div id="itemTargetArea" class="hidden mb-3 p-3 rounded-2xl bg-amber-50/80 border-2 border-amber-200 text-left">
+      <div id="itemTargetTitle" class="text-xs font-bold text-emerald-950 mb-2">🎯 เลือกเป้าหมาย:</div>
+      <div id="itemTargetOptions" class="grid gap-1.5 max-h-40 overflow-y-auto"></div>
+    </div>
+
+    <div id="itemDecisionButtons" class="flex gap-2.5">
+      <button id="btnDiscardItem" type="button" class="flex-1 py-3 px-3 rounded-2xl font-game font-bold text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 transition border border-gray-300 flex items-center justify-center gap-1.5">
+        <span>🗑️</span> ทิ้งไอเทม
+      </button>
+      <button id="btnUseItem" type="button" class="flex-1 py-3 px-3 rounded-2xl font-game font-bold text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-lg shadow-amber-500/30 transition flex items-center justify-center gap-1.5">
+        <span>⚡</span> ใช้ไอเทม
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Card received popup: auto-hides, click to dismiss -->
 <div id="cardPopup" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30" onclick="this.classList.add('hidden')" role="alert">
   <div class="game-card animate-in rounded-3xl shadow-xl border-2 border-amber-300 bg-white px-6 py-5 max-w-xs w-full text-center">
@@ -728,11 +784,10 @@
       <li>ทอยได้ 6 ได้ทอยอีกครั้ง แต่ถ้าได้ 6 สามครั้งติด จะถูกข้ามตาถัดไป</li>
       <li>🎯 ต้องทอยได้พอดีถึงช่อง 100 ถ้าเกินจะอยู่ที่เดิม</li>
       <li>🪜 บันไดพาขึ้น 🐍 งูพาลง</li>
-      <li>🎁 ลูกเต๋าตกช่องของขวัญ ได้การ์ดสุ่ม 1 ใบ ถือได้สูงสุด 2 ใบ</li>
-      <li>ใช้การ์ดได้ตาละ 1 ใบ: การ์ดเดินใช้คู่กับการทอย การ์ดโจมตีใช้แทนการทอย</li>
-      <li>💥 เดินไปตกช่องเดียวกับคนอื่น เขาถอยหลัง 3 ช่อง</li>
-      <li>🛡️ ถ้าเขามีโล่ คุณเด้งกลับ 3 ช่องแทน</li>
-      <li>คนที่อยู่ท้ายสุดจะได้การ์ดช่วยเหลือ</li>
+      <li>🎁 ตกช่องไอเทมพิเศษ ได้สุ่มไอเทม 1 ชิ้น เลือกว่าจะ <b>[ใช้ทันที]</b> หรือ <b>[ทิ้งไอเทม]</b></li>
+      <li>🔄 สลับร่าง: สามารถเลือกสลับตำแหน่งกับผู้เล่นคนใดก็ได้บนกระดานทันที</li>
+      <li>🪤 กับดัก: วางไว้ที่ช่องใดก็ได้บนกระดาน คนที่มาเหยียบจะหยุดทอย 1 ตา</li>
+      <li>💥 เดินไปตกช่องเดียวกับคนอื่น เขาถอยหลัง 3 ช่อง (ถ้าเขามีโล่ คุณเด้งกลับแทน)</li>
     </ul>
     <div id="rulesCards" class="grid gap-2"></div>
   </div>
@@ -1001,37 +1056,56 @@ const SNAKES = {
   97: [78, '☀️ แดดบ่ายเผากลางลานทะเลสาบ หน้ามืดแวะพักดื่มน้ำ!'],
 };
 
-// Item cards: the die landing on a 🎁 tile draws one. Hold max 2, play max 1 per turn.
-// move cards ride on your roll; attack cards replace your roll; shield is passive.
+// Item cards: the die landing on a 🎁 tile draws one.
+// Choice: USE NOW or DISCARD.
 const CARD_TILES = [7, 11, 17, 20, 30, 36, 45, 57, 66, 71, 79, 84]; // none from 90 up: keeps the finish calm
 const HAND_MAX = 2;
 const CARDS = {
-  double:     { kind: 'move',   icon: '🎲', name: 'ลูกเต๋าคู่', desc: 'ทอย 2 ลูก แล้วเลือกเองว่าจะใช้ลูกไหน' },
-  skywalk:    { kind: 'move',   icon: '🌉', name: 'ทางลัดสกายวอล์ค', desc: 'เดินเพิ่ม 2 ช่องในตานี้' },
-  bike:       { kind: 'move',   icon: '🚲', name: 'ปั่นจักรยานรอบสวน', desc: 'เดินเสร็จแล้วได้ทอยอีก 1 ครั้ง' },
-  trap:       { kind: 'move',   icon: '🪤', name: 'กับดัก', desc: 'วางกับดักบนช่องที่คุณออกเดิน คนอื่นมาตกถอยหลัง 4 ช่อง' },
-  swap:       { kind: 'attack', icon: '🔄', name: 'สลับร่าง', desc: 'แทนการทอย: สลับที่กับผู้เล่นที่ห่างไม่เกิน 15 ช่อง (ใช้ไม่ได้ช่อง 85 ขึ้นไป)' },
-  snake_call: { kind: 'attack', icon: '🐍', name: 'งูเรียกเพื่อน', desc: 'แทนการทอย: ส่งผู้เล่น 1 คนไปหัวงูที่อยู่ข้างหลังไม่เกิน 10 ช่อง แล้วไถลลง' },
-  gust:       { kind: 'attack', icon: '💨', name: 'ลมพัดถอยหลัง', desc: 'แทนการทอย: ผู้เล่น 1 คนถอยหลัง 5 ช่อง' },
-  shield:     { kind: 'guard',  icon: '🛡️', name: 'ร่มเงาต้นไม้', desc: 'ใช้อัตโนมัติ: กันงู การชน กับดัก หรือการโจมตีได้ 1 ครั้ง' },
+  double:     { kind: 'move',   icon: '🎲', name: 'ลูกเต๋าคู่', desc: 'ทอยลูกเต๋า 2 ลูกทันที แล้วเลือกลูกที่ดีที่สุดเพื่อก้าวเดิน' },
+  skywalk:    { kind: 'move',   icon: '🌉', name: 'ทางลัดสกายวอล์ค', desc: 'พุ่งทะยานไปข้างหน้าเพิ่มอีก 2 ช่องทันที!' },
+  bike:       { kind: 'move',   icon: '🚲', name: 'ปั่นจักรยานรอบสวน', desc: 'ได้รับสิทธิ์ทอยลูกเต๋าเดินเพิ่มอีก 1 ครั้งทันที!' },
+  trap:       { kind: 'move',   icon: '🪤', name: 'กับดัก', desc: 'วางกับดักไว้ที่ช่องใดก็ได้บนกระดาน คนที่มาเหยียบจะถูกหยุดทอยลูกเต๋า 1 ตา' },
+  swap:       { kind: 'attack', icon: '🔄', name: 'สลับร่าง', desc: 'สลับตำแหน่งกับผู้เล่นคนใดก็ได้บนกระดานทันที' },
+  snake_call: { kind: 'attack', icon: '🐍', name: 'งูเรียกเพื่อน', desc: 'ส่งผู้เล่น 1 คนไปหัวงูที่อยู่ใกล้ที่สุดด้านหลังแล้วไถลลง' },
+  gust:       { kind: 'attack', icon: '💨', name: 'ลมพัดถอยหลัง', desc: 'พัดผู้เล่น 1 คนให้ถอยหลัง 5 ช่องทันที' },
+  shield:     { kind: 'guard',  icon: '🛡️', name: 'ร่มเงาต้นไม้', desc: 'ได้รับโล่คุ้มกัน 1 ครั้ง: ป้องกันงู กับดัก หรือการโดนชน/โจมตี' },
 };
 const hand = pl => pl.cards || (pl.cards = []);
-const takeCard = (pl, c) => { const h = hand(pl), k = h.indexOf(c); if (k < 0) return false; h.splice(k, 1); return true; };
+const takeShield = pl => {
+  if (pl.shield) { pl.shield = false; return true; }
+  if (pl.cards && pl.cards.includes('shield')) {
+    pl.cards.splice(pl.cards.indexOf('shield'), 1);
+    return true;
+  }
+  return false;
+};
+const takeCard = (pl, c) => {
+  if (c === 'shield') return takeShield(pl);
+  const h = hand(pl), k = h.indexOf(c);
+  if (k < 0) return false;
+  h.splice(k, 1);
+  return true;
+};
 // Where a die value really leaves you after ladders/snakes (shield cancels the snake)
-const landing = (pl, d) => { if (pl.pos + d > 100) return pl.pos; const t = pl.pos + d; // exact roll needed to finish
-  return LADDERS[t] ? LADDERS[t][0] : SNAKES[t] && !hand(pl).includes('shield') ? SNAKES[t][0] : t; };
+const landing = (pl, d) => {
+  if (pl.pos + d > 100) return pl.pos;
+  const t = pl.pos + d; // exact roll needed to finish
+  const hasShield = pl.shield || (pl.cards && pl.cards.includes('shield'));
+  return LADDERS[t] ? LADDERS[t][0] : SNAKES[t] && !hasShield ? SNAKES[t][0] : t;
+};
 const snakeBehind = o => Object.keys(SNAKES).map(Number).filter(h => h < o.pos && o.pos - h <= 10).pop();
 // Seats an attack card may hit right now
 function targetsFor(pl, c) {
   return gameState.players.map((o, i) => i).filter(i => {
     const o = gameState.players[i];
     if (o === pl || o.pos <= 0 || o.pos >= 100) return false;
-    if (c === 'swap') return pl.pos < 85 && o.pos < 90 && o.pos !== pl.pos && Math.abs(o.pos - pl.pos) <= 15;
+    // Swap: can swap with any player at any position on the board!
+    if (c === 'swap') return o.pos !== pl.pos;
     if (c === 'snake_call') return snakeBehind(o) != null;
     return c === 'gust';
   });
 }
-const playable = (pl, c) => CARDS[c].kind === 'attack' ? targetsFor(pl, c).length > 0 : c === 'trap' ? pl.pos >= 1 && pl.pos < 90 : c !== 'shield';
+const playable = (pl, c) => CARDS[c].kind === 'attack' ? targetsFor(pl, c).length > 0 : true;
 // r: random number in [0,1) sent by the host with the roll, so every online client draws the same card
 function drawCard(pl, r) {
   const ps = gameState.players, last = ps.length > 1 && ps.every(o => o === pl || o.pos > pl.pos);
@@ -1041,13 +1115,6 @@ function drawCard(pl, r) {
 }
 // Bot choice: attack the leader ahead when possible, else any move card
 function botCard(pl) {
-  const ps = gameState.players;
-  for (const c of hand(pl)) {
-    if (!playable(pl, c)) continue;
-    if (CARDS[c].kind === 'move') return [c, null];
-    const t = targetsFor(pl, c).filter(i => ps[i].pos > pl.pos).sort((a, b) => ps[b].pos - ps[a].pos)[0];
-    if (t != null) return [c, t];
-  }
   return [null, null];
 }
 
@@ -1061,6 +1128,7 @@ const PASSPORT_STAMPS = [
   { id: 'lake', name: 'ทะเลสาบเบญจกิตติ', icon: '🌅', tile: 92 },
 ];
 let unlockedStamps = new Set();
+let selectingTrapTile = false;
 
 const zoneOf = n => ZONES.find(z => n <= z.to) || ZONES[0];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1078,33 +1146,44 @@ for (let row = 0; row < 10; row++) {
     const m = MILESTONES[n];
     const isLadder = !!LADDERS[n];
     const isSnake = !!SNAKES[n];
+    const isItemTile = CARD_TILES.includes(n);
 
     const el = document.createElement('div');
-    el.className = 'tile' + ((row + col) % 2 ? ' tile-alt' : '') + (isLadder ? ' is-ladder' : isSnake ? ' is-snake' : n === 100 ? ' is-goal' : '');
+    el.className = 'tile' + ((row + col) % 2 ? ' tile-alt' : '') +
+      (isLadder ? ' is-ladder' : isSnake ? ' is-snake' : n === 100 ? ' is-goal' : isItemTile ? ' is-item-tile' : '');
     el.style.background = z.color;
     el.dataset.n = n;
     el.setAttribute('role', 'button');
     el.tabIndex = -1;
-    el.setAttribute('aria-label', `ช่อง ${n}${m ? ' ' + m.name : ''}${isLadder ? ' บันได' : isSnake ? ' งู' : ''}`);
+    el.setAttribute('aria-label', `ช่อง ${n}${m ? ' ' + m.name : ''}${isLadder ? ' บันได' : isSnake ? ' งู' : isItemTile ? ' กล่องสุ่มไอเทม' : ''}`);
 
     let badge = '';
     if (isLadder) badge = '<span class="tile-badge text-emerald-800">🪜</span>';
     else if (isSnake) badge = '<span class="tile-badge text-rose-800">🐍</span>';
     else if (n === 100) badge = '<span class="tile-badge text-amber-800">🏆</span>';
-    else if (CARD_TILES.includes(n)) badge = '<span class="tile-badge">🎁</span>';
+    else if (isItemTile) badge = '<span class="tile-badge item-badge">🎁</span>';
+
+    const tileIconContent = m ? m.icon : isItemTile ? '<span class="item-tile-center-icon">🎁</span>' : '';
+    const tileNameContent = m ? m.name : isItemTile ? 'กล่องสุ่ม' : '';
 
     el.innerHTML = `
       <div class="tile-header">
         <span class="tile-num">${n}</span>
         ${badge}
       </div>
-      <div class="tile-icon">${m ? m.icon : ''}</div>
-      <div class="tile-name">${m ? m.name : ''}</div>
+      <div class="tile-icon">${tileIconContent}</div>
+      <div class="tile-name">${tileNameContent}</div>
     `;
 
-    // Click on tile -> open landmark info drawer
+    // Click on tile -> open landmark info drawer (or select tile if placing trap)
     el.onclick = () => {
       sfx.playPop();
+      if (selectingTrapTile) {
+        const inp = document.getElementById('trapInputNumber');
+        if (inp) inp.value = n;
+        showToast(`เลือกช่อง ${n} สำหรับวางกับดัก 🪤`, '🪤');
+        return;
+      }
       openLandmarkInfo(n);
     };
 
@@ -1322,23 +1401,21 @@ function updateHUD() {
   const btnRoll = document.getElementById('btnRoll');
   btnRoll.disabled = isBusy || !live || !myTurn || rollPending;
 
-  // Card hand of the player whose turn it is (left alone while a Double Dice pick is showing)
-  const canPlay = myTurn && live && !isBusy && !rollPending;
-  if (!canPlay) armedCard = null;
-  const btn = (attrs, on, label) => `<button ${attrs} ${on ? '' : 'disabled'} class="flex-1 px-2 py-1.5 rounded-xl text-xs font-bold border-2 transition bg-white border-emerald-200 disabled:opacity-50">${label}</button>`;
-  if (!pickResolve) document.getElementById('cardHand').innerHTML = armedCard && CARDS[armedCard].kind === 'attack'
-    ? `<span class="text-xs font-bold text-emerald-900">${CARDS[armedCard].icon} เลือกเป้าหมาย:</span>` +
-      targetsFor(cur, armedCard).map(i => btn(`data-target="${i}"`, true, `🎯 ${esc(gameState.players[i].avatar)} ${esc(gameState.players[i].name)}`)).join('') +
-      btn('data-card="' + armedCard + '"', true, '✕')
-    : hand(cur).map(c => btn(`data-card="${c}" title="${CARDS[c].desc}"`, canPlay && playable(cur, c),
-        `${CARDS[c].icon} ${CARDS[c].name}`).replace('bg-white border-emerald-200', armedCard === c ? 'bg-amber-300 border-amber-600' : 'bg-white border-emerald-200')).join('')
-      || '<span class="text-xs text-emerald-700 font-semibold">ลงช่อง 🎁 เพื่อรับการ์ด</span>';
+  // Status badge under roll button
+  const handEl = document.getElementById('cardHand');
+  if (handEl && !pickResolve) {
+    if (cur.shield || (cur.cards && cur.cards.includes('shield'))) {
+      handEl.innerHTML = '<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300">🛡️ มีโล่คุ้มกันตัว</span>';
+    } else {
+      handEl.innerHTML = '<span class="text-xs text-amber-800 font-semibold flex items-center gap-1">🎁 ช่องสีทองมีกล่องสุ่มไอเทม</span>';
+    }
+  }
 
   // Trap markers and shield rings
   document.querySelectorAll('.tile[data-trap]').forEach(t => delete t.dataset.trap);
   gameState.players.forEach((pl, i) => {
     if (pl.trap && tiles[pl.trap]) tiles[pl.trap].dataset.trap = '1';
-    pawns[i]?.classList.toggle('has-shield', hand(pl).includes('shield'));
+    pawns[i]?.classList.toggle('has-shield', !!pl.shield || (pl.cards && pl.cards.includes('shield')));
   });
 
   // Active pawn bounce
@@ -1423,34 +1500,278 @@ async function chooseDie(pl, v, v2) {
   return d;
 }
 
-// Attack card instead of a roll; target's shield blocks it
-async function doAttack(turnIdx, card, ti) {
-  const pl = gameState.players[turnIdx], o = gameState.players[ti], C = CARDS[card];
+// Attack or immediate item card execution
+async function applyCardEffect(turnIdx, card, targetSeat = null, targetTile = null) {
+  const pl = gameState.players[turnIdx];
+  const ps = gameState.players;
   sfx.playSkillDraw();
-  showToast(`${C.icon} ${pl.name} ใช้การ์ด ${C.name} ใส่ ${o.name}!`, C.icon, C.desc);
-  await sleep(900);
-  if (takeCard(o, 'shield')) {
+
+  if (card === 'shield') {
+    pl.shield = true;
     sfx.playShield();
-    showToast(`🛡️ ${o.name} ใช้โล่! กันการโจมตีไว้ได้`, '🛡️');
-  } else if (card === 'swap') {
-    [pl.pos, o.pos] = [o.pos, pl.pos];
-    placePawn(turnIdx, pl.pos); placePawn(ti, o.pos);
-    sfx.playPop();
-    showToast(`🔄 ${pl.name} สลับที่กับ ${o.name}!`, '🔄');
+    showToast(`🛡️ ${pl.name} สวมใส่โล่คุ้มกัน!`, '🛡️', 'ป้องกันงู กับดัก หรือการโจมตี 1 ครั้ง');
+    updateHUD();
+    await sleep(800);
+  } else if (card === 'skywalk') {
+    const to = Math.min(100, pl.pos + 2);
+    pl.pos = to;
+    placePawn(turnIdx, pl.pos);
+    sfx.playStep();
+    showToast(`🌉 ${pl.name} ใช้ทางลัดสกายวอล์ค!`, '🌉', `ก้าวไปข้างหน้า 2 ช่อง ถึงช่อง ${to}`);
     checkPassportStamps(pl.pos);
+    updateHUD();
+    await sleep(800);
+  } else if (card === 'bike') {
+    sfx.playPop();
+    showToast(`🚲 ${pl.name} ปั่นจักรยานรอบสวน!`, '🚲', 'ได้รับสิทธิ์ทอยลูกเต๋าเพิ่มอีก 1 ครั้งทันที');
+    await sleep(800);
+    return { extraRoll: true };
+  } else if (card === 'trap') {
+    const tile = targetTile ? Math.max(1, Math.min(99, targetTile)) : Math.min(99, pl.pos + 3);
+    pl.trap = tile;
+    sfx.playPop();
+    showToast(`🪤 ${pl.name} วางกับดักไว้ที่ช่อง ${tile}!`, '🪤', 'คนมาเหยียบจะหยุดทอยลูกเต๋า 1 ตา');
+    updateHUD();
+    await sleep(800);
+  } else if (card === 'swap') {
+    const ti = targetSeat != null ? targetSeat : targetsFor(pl, 'swap')[0];
+    if (ti != null && ps[ti]) {
+      const o = ps[ti];
+      if (takeShield(o)) {
+        sfx.playShield();
+        showToast(`🛡️ ${o.name} ใช้โล่! กันการสลับร่างไว้ได้`, '🛡️');
+      } else {
+        [pl.pos, o.pos] = [o.pos, pl.pos];
+        placePawn(turnIdx, pl.pos);
+        placePawn(ti, o.pos);
+        sfx.playPop();
+        showToast(`🔄 ${pl.name} สลับตำแหน่งกับ ${o.name}!`, '🔄', `${pl.name} อยู่ช่อง ${pl.pos}, ${o.name} อยู่ช่อง ${o.pos}`);
+        checkPassportStamps(pl.pos);
+      }
+      updateHUD();
+      await sleep(1000);
+    }
+  } else if (card === 'gust') {
+    const ti = targetSeat != null ? targetSeat : targetsFor(pl, 'gust')[0];
+    if (ti != null && ps[ti]) {
+      const o = ps[ti];
+      if (takeShield(o)) {
+        sfx.playShield();
+        showToast(`🛡️ ${o.name} ใช้โล่! กันลมพัดไว้ได้`, '🛡️');
+      } else {
+        o.pos = Math.max(0, o.pos - 5);
+        placePawn(ti, o.pos);
+        sfx.playGust();
+        showToast(`💨 ${pl.name} พัด ${o.name} ถอยหลัง 5 ช่อง!`, '💨', `ถอยไปที่ช่อง ${o.pos}`);
+      }
+      updateHUD();
+      await sleep(1000);
+    }
   } else if (card === 'snake_call') {
-    const h = snakeBehind(o), to = SNAKES[h][0];
-    o.pos = h; placePawn(ti, h);
-    await sleep(400);
-    o.pos = to; placePawn(ti, to);
-    sfx.playSnake();
-    showToast(`🐍 ${o.name} ไถลลงงูไปช่อง ${to}!`, '🐍');
-  } else {
-    o.pos = Math.max(0, o.pos - 5); placePawn(ti, o.pos);
-    sfx.playGust();
-    showToast(`💨 ${o.name} ถอยหลัง 5 ช่อง!`, '💨');
+    const ti = targetSeat != null ? targetSeat : targetsFor(pl, 'snake_call')[0];
+    if (ti != null && ps[ti]) {
+      const o = ps[ti];
+      if (takeShield(o)) {
+        sfx.playShield();
+        showToast(`🛡️ ${o.name} ใช้โล่! กันงูไว้ได้`, '🛡️');
+      } else {
+        const h = snakeBehind(o);
+        if (h && SNAKES[h]) {
+          const to = SNAKES[h][0];
+          o.pos = h; placePawn(ti, h);
+          await sleep(400);
+          o.pos = to; placePawn(ti, to);
+          sfx.playSnake();
+          showToast(`🐍 ${pl.name} เรียกงูใส่ ${o.name} ไถลลงไปช่อง ${to}!`, '🐍');
+        }
+      }
+      updateHUD();
+      await sleep(1000);
+    }
+  } else if (card === 'double') {
+    const d1 = 1 + Math.floor(Math.random() * 6);
+    const d2 = 1 + Math.floor(Math.random() * 6);
+    sfx.playRoll();
+    showToast(`🎲 ${pl.name} ใช้ลูกเต๋าคู่! ทอยได้ ${d1} และ ${d2}`, '🎲');
+    await sleep(600);
+    const pick = await chooseDie(pl, d1, d2);
+    pl.pos = landing(pl, pick);
+    placePawn(turnIdx, pl.pos);
+    showToast(`🎲 ${pl.name} เลือกลูกเต๋า ${pick} ก้าวไปช่อง ${pl.pos}`, '🎲');
+    checkPassportStamps(pl.pos);
+    updateHUD();
+    await sleep(800);
   }
-  await sleep(800);
+  return {};
+}
+
+// Prompt player to USE or DISCARD item
+async function promptItemDecision(turnIdx, card) {
+  const pl = gameState.players[turnIdx];
+  const ps = gameState.players;
+  const C = CARDS[card];
+
+  // If Bot: automatic choice
+  if (pl.bot) {
+    await sleep(800);
+    let willUse = true;
+    let targetSeat = null;
+    let targetTile = null;
+
+    if (card === 'swap') {
+      const targets = targetsFor(pl, 'swap');
+      const ahead = targets.filter(i => ps[i].pos > pl.pos).sort((a, b) => ps[b].pos - ps[a].pos);
+      if (ahead.length > 0) {
+        targetSeat = ahead[0];
+        willUse = true;
+      } else {
+        willUse = false; // already ahead or tied
+      }
+    } else if (card === 'gust') {
+      const targets = targetsFor(pl, 'gust');
+      const ahead = targets.filter(i => ps[i].pos > pl.pos).sort((a, b) => ps[b].pos - ps[a].pos);
+      if (ahead.length > 0) targetSeat = ahead[0];
+      else if (targets.length > 0) targetSeat = targets[0];
+      else willUse = false;
+    } else if (card === 'snake_call') {
+      const targets = targetsFor(pl, 'snake_call');
+      if (targets.length > 0) targetSeat = targets[0];
+      else willUse = false;
+    } else if (card === 'trap') {
+      const leader = ps.reduce((max, p) => p.pos > max.pos ? p : max, pl);
+      targetTile = leader.pos > pl.pos ? Math.min(99, leader.pos + 2) : Math.min(99, pl.pos + 4);
+      willUse = true;
+    }
+
+    if (willUse) {
+      showToast(`🎁 ${pl.name} ได้ไอเทม ${C.icon} ${C.name} -> [ใช้ทันที]!`, C.icon);
+      await sleep(1000);
+      return await applyCardEffect(turnIdx, card, targetSeat, targetTile);
+    } else {
+      showToast(`🎁 ${pl.name} ได้ไอเทม ${C.icon} ${C.name} -> [ทิ้งไอเทม]`, '🗑️');
+      await sleep(1000);
+      return { action: 'discard' };
+    }
+  }
+
+  // Human Player: show modal with USE or DISCARD
+  const modal = document.getElementById('modalItemDecision');
+  document.getElementById('itemDecisionWho').textContent = `${pl.avatar} ${pl.name} ตกช่องไอเทมพิเศษ!`;
+  document.getElementById('itemDecisionIcon').textContent = C.icon;
+  document.getElementById('itemDecisionName').textContent = C.name;
+  document.getElementById('itemDecisionDesc').textContent = C.desc;
+
+  const targetArea = document.getElementById('itemTargetArea');
+  const targetOptions = document.getElementById('itemTargetOptions');
+  const targetTitle = document.getElementById('itemTargetTitle');
+  const btnUse = document.getElementById('btnUseItem');
+  const btnDiscard = document.getElementById('btnDiscardItem');
+
+  targetArea.classList.add('hidden');
+  targetOptions.innerHTML = '';
+  modal.classList.remove('hidden');
+
+  return new Promise(resolve => {
+    btnDiscard.onclick = () => {
+      selectingTrapTile = false;
+      modal.classList.add('hidden');
+      sfx.playPop();
+      showToast(`🗑️ ${pl.name} ตัดสินใจทิ้งไอเทม ${C.name}`, '🗑️');
+      resolve({ action: 'discard' });
+    };
+
+    const doExecuteUse = async (tSeat = null, tTile = null) => {
+      selectingTrapTile = false;
+      modal.classList.add('hidden');
+      const res = await applyCardEffect(turnIdx, card, tSeat, tTile);
+      resolve({ action: 'use', ...res });
+    };
+
+    btnUse.onclick = () => {
+      if (card === 'swap') {
+        const targets = targetsFor(pl, 'swap');
+        if (targets.length === 0) {
+          showToast('ไม่มีผู้เล่นคนอื่นบนกระดานให้สลับตำแหน่งด้วย', '⚠️');
+          return;
+        }
+        targetTitle.textContent = '🔄 เลือกผู้เล่นที่ต้องการสลับตำแหน่งด้วย:';
+        targetOptions.innerHTML = targets.map(i => `
+          <button data-seat="${i}" class="w-full text-left p-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 flex items-center justify-between font-bold text-xs text-emerald-950">
+            <span>${ps[i].avatar} ${esc(ps[i].name)}</span>
+            <span class="text-amber-800 font-extrabold">ช่อง ${ps[i].pos}</span>
+          </button>
+        `).join('');
+        targetArea.classList.remove('hidden');
+        targetOptions.querySelectorAll('button').forEach(b => {
+          b.onclick = () => doExecuteUse(Number(b.dataset.seat), null);
+        });
+      } else if (card === 'trap') {
+        selectingTrapTile = true;
+        targetTitle.textContent = '🪤 ระบุช่องที่ต้องการวางกับดัก (1 - 99):';
+        const defaultTile = Math.min(99, pl.pos + 3);
+        targetOptions.innerHTML = `
+          <div class="flex items-center gap-2 mb-2">
+            <input id="trapInputNumber" type="number" min="1" max="99" value="${defaultTile}" class="w-24 px-3 py-1.5 rounded-xl border-2 border-amber-400 font-extrabold text-base text-center outline-none">
+            <span class="text-xs text-emerald-800 font-medium">กดจิ้มช่องบนกระดานได้เลย!</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5 mb-2">
+            <button type="button" class="trap-quick-btn px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white border border-amber-300 hover:bg-amber-100" data-val="${Math.min(99, pl.pos + 2)}">+2 ช่องหน้า</button>
+            <button type="button" class="trap-quick-btn px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white border border-amber-300 hover:bg-amber-100" data-val="${Math.min(99, pl.pos + 5)}">+5 ช่องหน้า</button>
+            <button type="button" class="trap-quick-btn px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white border border-amber-300 hover:bg-amber-100" data-val="99">ช่อง 99 (หน้าเส้นชัย)</button>
+          </div>
+          <button id="btnConfirmTrap" type="button" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-game font-bold text-xs shadow-md">
+            ✅ วางกับดักที่ช่องนี้
+          </button>
+        `;
+        targetArea.classList.remove('hidden');
+        const trapInput = document.getElementById('trapInputNumber');
+        targetOptions.querySelectorAll('.trap-quick-btn').forEach(btn => {
+          btn.onclick = () => trapInput.value = btn.dataset.val;
+        });
+        document.getElementById('btnConfirmTrap').onclick = () => {
+          const tVal = parseInt(trapInput.value, 10);
+          doExecuteUse(null, isNaN(tVal) ? defaultTile : Math.max(1, Math.min(99, tVal)));
+        };
+      } else if (card === 'gust') {
+        const targets = targetsFor(pl, 'gust');
+        if (targets.length === 0) {
+          showToast('ไม่มีเป้าหมายให้ผลักถอยหลัง', '⚠️');
+          return;
+        }
+        targetTitle.textContent = '💨 เลือกผู้เล่นที่ต้องการให้ถอยหลัง 5 ช่อง:';
+        targetOptions.innerHTML = targets.map(i => `
+          <button data-seat="${i}" class="w-full text-left p-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 flex items-center justify-between font-bold text-xs text-emerald-950">
+            <span>${ps[i].avatar} ${esc(ps[i].name)}</span>
+            <span class="text-amber-800 font-extrabold">ช่อง ${ps[i].pos}</span>
+          </button>
+        `).join('');
+        targetArea.classList.remove('hidden');
+        targetOptions.querySelectorAll('button').forEach(b => {
+          b.onclick = () => doExecuteUse(Number(b.dataset.seat), null);
+        });
+      } else if (card === 'snake_call') {
+        const targets = targetsFor(pl, 'snake_call');
+        if (targets.length === 0) {
+          showToast('ไม่มีผู้เล่นคนใดอยู่ใกล้หัวงู', '⚠️');
+          return;
+        }
+        targetTitle.textContent = '🐍 เลือกผู้เล่นที่จะส่งไปหางู:';
+        targetOptions.innerHTML = targets.map(i => `
+          <button data-seat="${i}" class="w-full text-left p-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 flex items-center justify-between font-bold text-xs text-emerald-950">
+            <span>${ps[i].avatar} ${esc(ps[i].name)}</span>
+            <span class="text-rose-800 font-extrabold">ใกล้หัวงูช่อง ${snakeBehind(ps[i])}</span>
+          </button>
+        `).join('');
+        targetArea.classList.remove('hidden');
+        targetOptions.querySelectorAll('button').forEach(b => {
+          b.onclick = () => doExecuteUse(Number(b.dataset.seat), null);
+        });
+      } else {
+        // Direct effect
+        doExecuteUse();
+      }
+    };
+  });
 }
 
 // card: played card id; v2: second die for Double Dice; ti: attack target seat. Host sends all of them so clients agree
@@ -1459,40 +1780,15 @@ async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)
   isBusy = true;
   rollSeq++;
   rollPending = false;
-  armedCard = null;
   earlyPick = null;
   updateHUD();
 
   const turnIdx = gameState.turn;
   const ps = gameState.players, pl = ps[turnIdx];
-  // Ignore anything not in hand / not allowed right now (also guards bad network input)
-  if (!card || !CARDS[card] || !hand(pl).includes(card) || !playable(pl, card)
-      || (CARDS[card].kind === 'attack' && !targetsFor(pl, card).includes(ti))) card = null;
-  if (card) takeCard(pl, card);
-
-  if (card && CARDS[card].kind === 'attack') {
-    await doAttack(turnIdx, card, ti);
-    nextTurn();
-    isBusy = false;
-    updateHUD();
-    return;
-  }
-  if (card === 'trap') {
-    pl.trap = pl.pos; // one active trap per player: a new one replaces the old
-    sfx.playPop();
-    showToast(`🪤 ${pl.name} วางกับดักที่ช่อง ${pl.pos}`, '🪤');
-    updateHUD();
-    await sleep(600);
-  }
 
   // 1. Animate dice
   await animateDiceRoll(v);
-  if (card === 'double') {
-    showDiceFace(v);
-    v = await chooseDie(pl, v, v2);
-    showDiceFace(v);
-  }
-  const steps = v + (card === 'skywalk' ? 2 : 0);
+  const steps = v;
 
   // 2. Step-by-step movement
   // Exact roll to finish: overshooting 100 means you stay put
@@ -1501,7 +1797,7 @@ async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)
     await sleep(900);
   }
   const target = pl.pos + steps > 100 ? pl.pos : pl.pos + steps;
-  showToast(`${pl.name} ทอยได้ ${v} ก้าว`, '🎲', card ? `${CARDS[card].icon} ${CARDS[card].name}` : 'กำลังเดินผ่านเส้นทางสวนป่าเบญจกิตติ...');
+  showToast(`${pl.name} ทอยได้ ${v} ก้าว`, '🎲', 'กำลังเดินผ่านเส้นทางสวนป่าเบญจกิตติ...');
   for (let n = pl.pos + 1; n <= target; n++) {
     pl.pos = n;
     placePawn(turnIdx, n);
@@ -1521,7 +1817,7 @@ async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)
     placePawn(turnIdx, to);
     checkPassportStamps(to);
     await sleep(350);
-  } else if (SNAKES[target] && takeCard(pl, 'shield')) {
+  } else if (SNAKES[target] && takeShield(pl)) {
     sfx.playShield();
     showToast(`🛡️ ${pl.name} ใช้โล่กันงู!`, '🛡️', 'ไม่ต้องถอยกลับ');
     await sleep(600);
@@ -1538,22 +1834,23 @@ async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)
     showToast(`${pl.name} เดินถึง ${m ? m.name : zoneOf(target).name}`, m ? m.icon : '🌲', m ? m.desc : 'เส้นทางเดินเท้าชมธรรมชาติสวนป่า');
   }
 
-  // Trap: a rival's trap on the square you end on sends you back 4 (used up either way)
+  // Trap: a rival's trap on the square you end on skips your next turn (used up either way)
   const k = pl.pos > 0 && pl.pos < 100 ? ps.findIndex((o, i) => i !== turnIdx && o.trap === pl.pos) : -1;
   if (k >= 0) {
-    ps[k].trap = null;
+    const trapOwner = ps[k];
+    trapOwner.trap = null;
     await sleep(350);
-    if (takeCard(pl, 'shield')) {
+    sfx.playTrap();
+    if (takeShield(pl)) {
       sfx.playShield();
-      showToast(`🛡️ ${pl.name} ใช้โล่กันกับดัก!`, '🛡️');
+      showToast(`🛡️ ${pl.name} ใช้โล่กันกับดัก!`, '🛡️', 'ไม่ถูกหยุดตา');
     } else {
-      pl.pos = Math.max(0, pl.pos - 4);
-      placePawn(turnIdx, pl.pos);
+      pl.skip = true;
       sfx.playSnake();
-      showToast(`🪤 ${pl.name} ติดกับดักของ ${ps[k].name} ถอยหลัง 4 ช่อง!`, '🪤');
+      showToast(`🪤 ${pl.name} ติดกับดักของ ${trapOwner.name}!`, '🪤', 'หยุดทอยลูกเต๋า 1 ตา');
     }
     updateHUD();
-    await sleep(700);
+    await sleep(900);
   }
 
   // Bump: landing on a rival pushes them back 3, unless their shield bounces you instead (never chains)
@@ -1561,7 +1858,7 @@ async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)
   if (j >= 0) {
     const o = ps[j];
     await sleep(350);
-    if (takeCard(o, 'shield')) {
+    if (takeShield(o)) {
       sfx.playShield();
       pl.pos = Math.max(0, pl.pos - 3);
       placePawn(turnIdx, pl.pos);
@@ -1575,15 +1872,15 @@ async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)
     await sleep(700);
   }
 
-  // Card draw: only when the die itself lands on a 🎁 tile
-  if (CARD_TILES.includes(target) && hand(pl).length < HAND_MAX) {
+  // Card draw / Item tile: Choose to USE NOW or DISCARD
+  let extraRollFromItem = false;
+  if (CARD_TILES.includes(target)) {
     const c = drawCard(pl, r);
-    hand(pl).push(c);
     sfx.playSkillDraw();
-    await sleep(400);
-    showToast(`🎁 ${pl.name} ได้การ์ด ${CARDS[c].icon} ${CARDS[c].name}!`, CARDS[c].icon, CARDS[c].desc);
-    showCardPopup(pl, c);
-    await sleep(1800);
+    const decision = await promptItemDecision(turnIdx, c);
+    if (decision && decision.extraRoll) {
+      extraRollFromItem = true;
+    }
   }
 
   // 4. Check for Winner
@@ -1597,9 +1894,9 @@ async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6)
     showToast(`😵 ${pl.name} ทอยได้ 6 สามครั้งติด! ข้ามตาถัดไป`, '⏸️');
     await sleep(900);
     nextTurn();
-  } else if (v === 6 || card === 'bike') {
+  } else if (v === 6 || extraRollFromItem) {
     if (v !== 6) pl.sixes = 0;
-    showToast(card === 'bike' && v !== 6 ? `🚲 ${pl.name} ได้ทอยอีกครั้ง!` : `🎉 ${pl.name} ทอยได้เลข 6! ได้สิทธิ์ทอยเพิ่มอีกครั้ง!`, '🎲', 'หมุนเต๋าต่อได้ทันที');
+    showToast(extraRollFromItem && v !== 6 ? `🚲 ${pl.name} ได้สิทธิ์ทอยเพิ่มอีกครั้ง!` : `🎉 ${pl.name} ทอยได้เลข 6! ได้สิทธิ์ทอยเพิ่มอีกครั้ง!`, '🎲', 'หมุนเต๋าต่อได้ทันที');
   } else {
     nextTurn();
   }
@@ -1623,24 +1920,23 @@ function showWinnerModal(winnerPlayer) {
   }
 }
 
-// Send a turn: a roll (with an optional move card) or an attack card on a target seat
-function playTurn(card, target = null) {
+// Send a turn: a dice roll
+function playTurn() {
   if (!isMyTurn() || isBusy || rollPending) return;
   if (gameState.mode === 'guest') {
-    // Host is the only dice authority, so a guest click can't race the host's AFK auto-roll
     rollPending = true;
-    netSession.send({ type: 'ROLL_REQ', id: netSession.myId, card, target });
+    netSession.send({ type: 'ROLL_REQ', id: netSession.myId });
     updateHUD();
     return;
   }
-  const v = 1 + Math.floor(Math.random() * 6), v2 = 1 + Math.floor(Math.random() * 6);
+  const v = 1 + Math.floor(Math.random() * 6);
   const r = Math.random();
-  if (gameState.mode === 'host') netSession.broadcastRoll(v, card, v2, target, r);
-  handleRoll(v, card, v2, target, r);
+  if (gameState.mode === 'host') netSession.broadcastRoll(v, null, null, null, r);
+  handleRoll(v, null, null, null, r);
 }
-document.getElementById('btnRoll').onclick = () => playTurn(armedCard && CARDS[armedCard].kind === 'move' ? armedCard : null);
+document.getElementById('btnRoll').onclick = () => playTurn();
 
-// Tap a card to arm it (tap again to put it back); attack cards then ask for a target
+// Double Dice die pick handler
 document.getElementById('cardHand').onclick = e => {
   const b = e.target.closest('button');
   if (!b || b.disabled) return;
@@ -1649,11 +1945,7 @@ document.getElementById('cardHand').onclick = e => {
     if (gameState.mode === 'guest') netSession.send({ type: 'PICK_REQ', id: netSession.myId, die: +b.dataset.die });
     else pickDie(+b.dataset.die);
     b.parentElement.querySelectorAll('button').forEach(x => x.disabled = true);
-    return;
   }
-  if (b.dataset.target) return playTurn(armedCard, +b.dataset.target);
-  armedCard = armedCard === b.dataset.card ? null : b.dataset.card;
-  updateHUD();
 };
 
 // ==========================================
@@ -2218,7 +2510,7 @@ function renderPassInputs() {
   passInputsEl.innerHTML = Array.from({ length: passCount }, (_, i) => `
     <div class="flex items-center gap-2 bg-white p-2 rounded-2xl border border-emerald-200">
       <span class="text-2xl">${AVATARS[i % AVATARS.length]}</span>
-      <input type="text" maxlength="12" value="ผู้เล่น ${i + 1}" class="pass-name-input flex-1 px-3 py-1 font-bold outline-none text-sm text-emerald-950">
+      <input type="text" maxlength="30" value="ผู้เล่น ${i + 1}" class="pass-name-input flex-1 px-3 py-1 font-bold outline-none text-sm text-emerald-950">
     </div>
   `).join('');
 }
@@ -2325,7 +2617,9 @@ function updateWinButton() {
 function resetGame() {
   if (!gameState) return;
   readyIds.clear();
-  gameState.players.forEach(p => { p.pos = 0; p.cards = []; p.trap = null; p.sixes = 0; p.skip = false; });
+  selectingTrapTile = false;
+  document.getElementById('modalItemDecision')?.classList.add('hidden');
+  gameState.players.forEach(p => { p.pos = 0; p.cards = []; p.trap = null; p.sixes = 0; p.skip = false; p.shield = false; });
   gameState.turn = 0;
   gameState.winner = null;
   isBusy = false; turnKey = -1; rollPending = false;
