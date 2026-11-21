@@ -234,7 +234,26 @@
   /* Pawns & Traps */
   .tile[data-trap]::after { content: '🪤'; position: absolute; right: 2px; bottom: 1px; font-size: clamp(12px, 1.8vw, 22px); filter: drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
   .tile[data-trap] { box-shadow: inset 0 0 0 2.5px #ef4444, 0 0 8px rgba(239,68,68,.5) !important; }
-  .pawn.has-shield { box-shadow: 0 0 0 3.5px #3b82f6, 0 0 10px rgba(59,130,246,.7); }
+  .pawn.has-shield {
+    box-shadow: 0 0 0 3.5px #3b82f6, 0 0 10px rgba(59,130,246,.7) !important;
+  }
+  .pawn.has-shield::before {
+    content: '🛡️';
+    position: absolute;
+    top: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(10px, 1.8vw, 17px);
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+    animation: shieldFloat 1.2s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 40;
+  }
+  @keyframes shieldFloat {
+    0% { transform: translateX(-50%) translateY(0); }
+    100% { transform: translateX(-50%) translateY(-4px) scale(1.15); }
+  }
   .pawn {
     position: absolute;
     width: 6.8%;
@@ -1058,15 +1077,16 @@ const SNAKES = {
 
 // Item cards: the die landing on a 🎁 tile draws one.
 // Choice: USE NOW or DISCARD.
-const CARD_TILES = [7, 11, 17, 20, 30, 36, 45, 57, 66, 71, 79, 84]; // none from 90 up: keeps the finish calm
+// Exactly 15 tiles out of 100 tiles = 15% item distribution
+const CARD_TILES = [7, 11, 17, 22, 30, 36, 45, 52, 59, 66, 71, 79, 84, 88, 94];
 const HAND_MAX = 2;
 const CARDS = {
   double:     { kind: 'move',   icon: '🎲', name: 'ลูกเต๋าคู่', desc: 'ทอยลูกเต๋า 2 ลูกทันที แล้วเลือกลูกที่ดีที่สุดเพื่อก้าวเดิน' },
-  skywalk:    { kind: 'move',   icon: '🌉', name: 'ทางลัดสกายวอล์ค', desc: 'พุ่งทะยานไปข้างหน้าเพิ่มอีก 2 ช่องทันที!' },
+  skywalk:    { kind: 'move',   icon: '🌉', name: 'Skywalk Dash!', desc: 'สไลด์ทะยานไปข้างหน้า 4 ช่องทันที!' },
   bike:       { kind: 'move',   icon: '🚲', name: 'ปั่นจักรยานรอบสวน', desc: 'ได้รับสิทธิ์ทอยลูกเต๋าเดินเพิ่มอีก 1 ครั้งทันที!' },
   trap:       { kind: 'move',   icon: '🪤', name: 'กับดัก', desc: 'วางกับดักไว้ที่ช่องใดก็ได้บนกระดาน คนที่มาเหยียบจะถูกหยุดทอยลูกเต๋า 1 ตา' },
   swap:       { kind: 'attack', icon: '🔄', name: 'สลับร่าง', desc: 'สลับตำแหน่งกับผู้เล่นคนใดก็ได้บนกระดานทันที' },
-  snake_call: { kind: 'attack', icon: '🐍', name: 'งูเรียกเพื่อน', desc: 'ส่งผู้เล่น 1 คนไปหัวงูที่อยู่ใกล้ที่สุดด้านหลังแล้วไถลลง' },
+  snake_call: { kind: 'attack', icon: '🐍', name: 'งูเรียกเพื่อน', desc: 'ส่งผู้เล่น 1 คนไปใกล้งูที่ใกล้ที่สุดแล้วไถลลง' },
   gust:       { kind: 'attack', icon: '💨', name: 'ลมพัดถอยหลัง', desc: 'พัดผู้เล่น 1 คนให้ถอยหลัง 5 ช่องทันที' },
   shield:     { kind: 'guard',  icon: '🛡️', name: 'ร่มเงาต้นไม้', desc: 'ได้รับโล่คุ้มกัน 1 ครั้ง: ป้องกันงู กับดัก หรือการโดนชน/โจมตี' },
 };
@@ -1093,7 +1113,20 @@ const landing = (pl, d) => {
   const hasShield = pl.shield || (pl.cards && pl.cards.includes('shield'));
   return LADDERS[t] ? LADDERS[t][0] : SNAKES[t] && !hasShield ? SNAKES[t][0] : t;
 };
-const snakeBehind = o => Object.keys(SNAKES).map(Number).filter(h => h < o.pos && o.pos - h <= 10).pop();
+// Find the snake head closest to the given board position
+function nearestSnake(pos) {
+  const heads = Object.keys(SNAKES).map(Number);
+  let best = heads[0];
+  let minDiff = Math.abs(pos - best);
+  for (const h of heads) {
+    const diff = Math.abs(pos - h);
+    if (diff < minDiff) {
+      minDiff = diff;
+      best = h;
+    }
+  }
+  return best;
+}
 // Seats an attack card may hit right now
 function targetsFor(pl, c) {
   return gameState.players.map((o, i) => i).filter(i => {
@@ -1101,7 +1134,8 @@ function targetsFor(pl, c) {
     if (o === pl || o.pos <= 0 || o.pos >= 100) return false;
     // Swap: can swap with any player at any position on the board!
     if (c === 'swap') return o.pos !== pl.pos;
-    if (c === 'snake_call') return snakeBehind(o) != null;
+    // Snake call: can target any player on the board and send them to nearest snake
+    if (c === 'snake_call') return true;
     return c === 'gust';
   });
 }
@@ -1268,6 +1302,21 @@ function showDiceFace(v) {
 }
 showDiceFace(1);
 
+// Cryptographically fair, unbiased 6-sided die roll using rejection sampling
+function rollDie() {
+  if (window.crypto && window.crypto.getRandomValues) {
+    const buf = new Uint32Array(1);
+    const limit = 4294967292; // 0xFFFFFFFF - (0xFFFFFFFF % 6)
+    let val;
+    do {
+      window.crypto.getRandomValues(buf);
+      val = buf[0];
+    } while (val >= limit);
+    return 1 + (val % 6);
+  }
+  return 1 + Math.floor(Math.random() * 6);
+}
+
 async function animateDiceRoll(v) {
   dieEl.classList.remove('rolling');
   void dieEl.offsetWidth;
@@ -1275,7 +1324,7 @@ async function animateDiceRoll(v) {
   sfx.playDice();
 
   for (let i = 0; i < 7; i++) {
-    showDiceFace(1 + Math.floor(Math.random() * 6));
+    showDiceFace(rollDie());
     await sleep(60);
   }
   showDiceFace(v);
@@ -1308,7 +1357,7 @@ setInterval(() => {
   const left = Math.max(0, Math.ceil(AFK_SECONDS - (Date.now() - turnStart) / 1000));
   document.getElementById('turnStatusBadge').textContent = `${isMyTurn() ? 'ทอยเต๋าได้เลย 🎲' : 'กำลังรอ...'} ⏱ ${left}s`;
   if (left === 0 && gameState.mode === 'host') {
-    const v = 1 + Math.floor(Math.random() * 6);
+    const v = rollDie();
     handleRoll(v, null, undefined, null, netSession.broadcastRoll(v));
   }
 }, 250);
@@ -1450,8 +1499,7 @@ function updateHUD() {
     botTimer = setTimeout(() => {
       botTimer = null;
       if (gameState && gameState.winner == null && !isBusy && gameState.players[gameState.turn].bot) {
-        const [c, t] = botCard(gameState.players[gameState.turn]);
-        handleRoll(1 + Math.floor(Math.random() * 6), c, undefined, t);
+        handleRoll(rollDie());
       }
     }, 900);
   }
@@ -1513,14 +1561,41 @@ async function applyCardEffect(turnIdx, card, targetSeat = null, targetTile = nu
     updateHUD();
     await sleep(800);
   } else if (card === 'skywalk') {
-    const to = Math.min(100, pl.pos + 2);
-    pl.pos = to;
-    placePawn(turnIdx, pl.pos);
+    const steps = 4;
+    const start = pl.pos;
+    const to = Math.min(100, pl.pos + steps);
     sfx.playStep();
-    showToast(`🌉 ${pl.name} ใช้ทางลัดสกายวอล์ค!`, '🌉', `ก้าวไปข้างหน้า 2 ช่อง ถึงช่อง ${to}`);
-    checkPassportStamps(pl.pos);
+    showToast(`🌉 ${pl.name} ใช้ Skywalk Dash!`, '🌉', `สไลด์ทะยานไปข้างหน้า 4 ช่อง สู่ช่อง ${to}!`);
+    for (let n = start + 1; n <= to; n++) {
+      pl.pos = n;
+      placePawn(turnIdx, n);
+      sfx.playStep();
+      await sleep(140);
+    }
+    checkPassportStamps(to);
+    if (LADDERS[to]) {
+      const [lTo, msg] = LADDERS[to];
+      sfx.playLadder();
+      showToast(`🪜 ${pl.name} ${msg}`, '🪜', `พุ่งทะยานจากช่อง ${to} ไปช่อง ${lTo}!`);
+      await sleep(250);
+      pl.pos = lTo;
+      placePawn(turnIdx, lTo);
+      checkPassportStamps(lTo);
+    } else if (SNAKES[to]) {
+      if (takeShield(pl)) {
+        sfx.playShield();
+        showToast(`🛡️ ${pl.name} ใช้โล่กันงู!`, '🛡️', 'ไม่ต้องถอยกลับ');
+      } else {
+        const [sTo, msg] = SNAKES[to];
+        sfx.playSnake();
+        showToast(`🐍 ${pl.name} ${msg}`, '🐍', `ถอยกลับจากช่อง ${to} มาช่อง ${sTo}!`);
+        await sleep(250);
+        pl.pos = sTo;
+        placePawn(turnIdx, sTo);
+      }
+    }
     updateHUD();
-    await sleep(800);
+    await sleep(600);
   } else if (card === 'bike') {
     sfx.playPop();
     showToast(`🚲 ${pl.name} ปั่นจักรยานรอบสวน!`, '🚲', 'ได้รับสิทธิ์ทอยลูกเต๋าเพิ่มอีก 1 ครั้งทันที');
@@ -1575,22 +1650,24 @@ async function applyCardEffect(turnIdx, card, targetSeat = null, targetTile = nu
         sfx.playShield();
         showToast(`🛡️ ${o.name} ใช้โล่! กันงูไว้ได้`, '🛡️');
       } else {
-        const h = snakeBehind(o);
+        const h = nearestSnake(o.pos);
         if (h && SNAKES[h]) {
           const to = SNAKES[h][0];
           o.pos = h; placePawn(ti, h);
-          await sleep(400);
+          sfx.playSnake();
+          showToast(`🐍 ${pl.name} ส่ง ${o.name} ไปใกล้งูช่อง ${h}!`, '🐍', 'กำลังจะไถลลงงู...');
+          await sleep(600);
           o.pos = to; placePawn(ti, to);
           sfx.playSnake();
-          showToast(`🐍 ${pl.name} เรียกงูใส่ ${o.name} ไถลลงไปช่อง ${to}!`, '🐍');
+          showToast(`🐍 ${o.name} ไถลลงงูไปช่อง ${to}!`, '🐍');
         }
       }
       updateHUD();
       await sleep(1000);
     }
   } else if (card === 'double') {
-    const d1 = 1 + Math.floor(Math.random() * 6);
-    const d2 = 1 + Math.floor(Math.random() * 6);
+    const d1 = rollDie();
+    const d2 = rollDie();
     sfx.playRoll();
     showToast(`🎲 ${pl.name} ใช้ลูกเต๋าคู่! ทอยได้ ${d1} และ ${d2}`, '🎲');
     await sleep(600);
@@ -1752,16 +1829,20 @@ async function promptItemDecision(turnIdx, card) {
       } else if (card === 'snake_call') {
         const targets = targetsFor(pl, 'snake_call');
         if (targets.length === 0) {
-          showToast('ไม่มีผู้เล่นคนใดอยู่ใกล้หัวงู', '⚠️');
+          showToast('ไม่มีผู้เล่นคนอื่นบนกระดานให้ส่งไปหางู', '⚠️');
           return;
         }
-        targetTitle.textContent = '🐍 เลือกผู้เล่นที่จะส่งไปหางู:';
-        targetOptions.innerHTML = targets.map(i => `
-          <button data-seat="${i}" class="w-full text-left p-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 flex items-center justify-between font-bold text-xs text-emerald-950">
-            <span>${ps[i].avatar} ${esc(ps[i].name)}</span>
-            <span class="text-rose-800 font-extrabold">ใกล้หัวงูช่อง ${snakeBehind(ps[i])}</span>
-          </button>
-        `).join('');
+        targetTitle.textContent = '🐍 เลือกผู้เล่นที่จะส่งไปใกล้งูที่ใกล้ที่สุด:';
+        targetOptions.innerHTML = targets.map(i => {
+          const nearH = nearestSnake(ps[i].pos);
+          const dropTo = SNAKES[nearH][0];
+          return `
+            <button data-seat="${i}" class="w-full text-left p-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 flex items-center justify-between font-bold text-xs text-emerald-950">
+              <span>${ps[i].avatar} ${esc(ps[i].name)} (ช่อง ${ps[i].pos})</span>
+              <span class="text-rose-800 font-extrabold">งูช่อง ${nearH} ➔ ลงช่อง ${dropTo}</span>
+            </button>
+          `;
+        }).join('');
         targetArea.classList.remove('hidden');
         targetOptions.querySelectorAll('button').forEach(b => {
           b.onclick = () => doExecuteUse(Number(b.dataset.seat), null);
@@ -1775,7 +1856,7 @@ async function promptItemDecision(turnIdx, card) {
 }
 
 // card: played card id; v2: second die for Double Dice; ti: attack target seat. Host sends all of them so clients agree
-async function handleRoll(v, card = null, v2 = 1 + Math.floor(Math.random() * 6), ti = null, r = Math.random()) {
+async function handleRoll(v, card = null, v2 = rollDie(), ti = null, r = Math.random()) {
   if (isBusy || !gameState || gameState.winner != null) return;
   isBusy = true;
   rollSeq++;
@@ -1929,7 +2010,7 @@ function playTurn() {
     updateHUD();
     return;
   }
-  const v = 1 + Math.floor(Math.random() * 6);
+  const v = rollDie();
   const r = Math.random();
   if (gameState.mode === 'host') netSession.broadcastRoll(v, null, null, null, r);
   handleRoll(v, null, null, null, r);
@@ -2141,7 +2222,7 @@ class NetworkSession {
         }
       } else if (data.type === 'ROLL_REQ' && gameState && gameState.winner == null && !isBusy
                  && gameState.players[gameState.turn].id === data.id) {
-        const v = 1 + Math.floor(Math.random() * 6), v2 = 1 + Math.floor(Math.random() * 6);
+        const v = rollDie(), v2 = rollDie();
         const card = hand(gameState.players[gameState.turn]).includes(data.card) ? data.card : null;
         const target = Number.isInteger(data.target) ? data.target : null;
         handleRoll(v, card, v2, target, this.broadcastRoll(v, card, v2, target));
