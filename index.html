@@ -1088,6 +1088,7 @@ const LADDERS = {
 
 // Snakes: Real obstacles and hazards in Benjakitti Park
 const SNAKES = {
+  23: [7,  '🐍 สะดุดรากไม้ใกล้พุ่มกกริมบึง ลื่นไถลถอยรูดกลับไปช่อง 7!'],
   27: [5,  '🌧️ พายุฝนตกกระหน่ำกลางลานโล่ง ต้องวิ่งหลบกลับศาลาทางเข้า!'],
   40: [3,  '🦎 "น้องเหี้ย" ขนาดยักษ์นอนขวางสะพานไม้ ตกใจถอยหลัง!'],
   54: [31, '🌾 หลงเข้าไปในดงต้นกกบำบัดน้ำ หาทางออกไม่เจอ!'],
@@ -1893,8 +1894,8 @@ async function handleRoll(v, card = null, v2 = rollDie(), ti = null, r = Math.ra
         sfx.playStep();
         await sleep(180);
 
-        // Trap: Rival's trap on tile n forces player to stop here (used up on contact)
-        const trapOwnerIdx = ps.findIndex((o, i) => i !== turnIdx && o.trap === n);
+        // Trap: Any player (first person to step/pass) triggers the trap on tile n
+        const trapOwnerIdx = ps.findIndex(o => o.trap === n);
         if (trapOwnerIdx >= 0) {
           const trapOwner = ps[trapOwnerIdx];
           trapOwner.trap = null;
@@ -1907,10 +1908,11 @@ async function handleRoll(v, card = null, v2 = rollDie(), ti = null, r = Math.ra
           } else {
             pl.skip = true;
             sfx.playSnake();
-            showToast(`🪤 ${pl.name} ติดกับดักของ ${trapOwner.name} ที่ช่อง ${n}!`, '🪤', 'หยุดเดินทันที และข้ามทอยเต๋า 1 ตา');
+            const hitMsg = trapOwner === pl ? 'พลาดท่าเหยียบกับดักของตัวเอง' : `ติดกับดักของ ${trapOwner.name}`;
+            showToast(`🪤 ${pl.name} ${hitMsg} ที่ช่อง ${n}!`, '🪤', 'หยุดเดินทันที และข้ามทอยเต๋า 1 ตา');
           }
           target = n;
-          await sleep(600);
+          await sleep(800);
           break; // Stop walking immediately at trap tile!
         }
       }
@@ -1921,28 +1923,33 @@ async function handleRoll(v, card = null, v2 = rollDie(), ti = null, r = Math.ra
     // 3. Destination effects at pl.pos (Ladder, Snake, Milestone)
     if (LADDERS[pl.pos]) {
       const [to, msg] = LADDERS[pl.pos];
+      await sleep(350);
       sfx.playLadder();
       showToast(`🪜 ${pl.name} ${msg}`, '🪜', `พุ่งทะยานจากช่อง ${pl.pos} ไปช่อง ${to}!`);
-      await sleep(350);
+      await sleep(400);
       pl.pos = to;
       placePawn(turnIdx, to);
       checkPassportStamps(to);
-      await sleep(400);
+      await sleep(450);
     } else if (SNAKES[pl.pos] && takeShield(pl)) {
+      await sleep(350);
       sfx.playShield();
-      showToast(`🛡️ ${pl.name} ใช้โล่กันงู!`, '🛡️', 'ไม่ต้องถอยกลับ');
+      showToast(`🛡️ ${pl.name} ใช้โล่กันงูที่ช่อง ${pl.pos}!`, '🛡️', 'ไม่ต้องถอยกลับ');
       await sleep(600);
     } else if (SNAKES[pl.pos]) {
       const [to, msg] = SNAKES[pl.pos];
+      await sleep(350);
       sfx.playSnake();
       showToast(`🐍 ${pl.name} ${msg}`, '🐍', `ถอยกลับจากช่อง ${pl.pos} มาช่อง ${to}!`);
-      await sleep(350);
+      await sleep(400);
       pl.pos = to;
       placePawn(turnIdx, to);
-      await sleep(400);
+      await sleep(450);
     } else if (pl.pos < 100) {
       const m = MILESTONES[pl.pos];
-      showToast(`${pl.name} เดินถึง ${m ? m.name : zoneOf(pl.pos).name}`, m ? m.icon : '🌲', m ? m.desc : 'เส้นทางเดินเท้าชมธรรมชาติสวนป่า');
+      if (m) {
+        showToast(`${pl.name} เดินถึง ${m.name}`, m.icon, m.desc);
+      }
     }
 
     // Bump: landing on a rival pushes them back 3, unless their shield bounces you instead
@@ -1967,6 +1974,7 @@ async function handleRoll(v, card = null, v2 = rollDie(), ti = null, r = Math.ra
     // Item tile trigger: check final destination pl.pos
     let extraRollFromItem = false;
     if (CARD_TILES.includes(pl.pos)) {
+      await sleep(400);
       const c = drawCard(pl, r);
       sfx.playSkillDraw();
       const decision = await promptItemDecision(turnIdx, c);
@@ -1986,7 +1994,7 @@ async function handleRoll(v, card = null, v2 = rollDie(), ti = null, r = Math.ra
       showToast(`😵 ${pl.name} ทอยได้ 6 สามครั้งติด! ข้ามตาถัดไป`, '⏸️');
       await sleep(900);
       nextTurn();
-    } else if (v === 6 || extraRollFromItem) {
+    } else if (!pl.skip && (v === 6 || extraRollFromItem)) {
       if (v !== 6) pl.sixes = 0;
       showToast(extraRollFromItem && v !== 6 ? `🚲 ${pl.name} ได้สิทธิ์ทอยเพิ่มอีกครั้ง!` : `🎉 ${pl.name} ทอยได้เลข 6! ได้สิทธิ์ทอยเพิ่มอีกครั้ง!`, '🎲', 'หมุนเต๋าต่อได้ทันที');
     } else {
