@@ -1202,18 +1202,40 @@ function targetsFor(pl, c) {
 const playable = (pl, c) => CARDS[c].kind === 'attack' ? targetsFor(pl, c).length > 0 : true;
 // r: random number in [0,1) sent by the host with the roll, so every online client draws the same card
 function drawCard(pl, r) {
-  const ps = gameState.players, last = ps.length > 1 && ps.every(o => o === pl || o.pos > pl.pos);
-  let pool = last ? ['shield', 'skywalk', 'swap', 'bike'] // comeback help
-    : ['skywalk', 'bike', 'trap', 'swap', 'snake_call', 'gust', 'shield'];
-
-  // Prevent getting the same card consecutively
-  if (pl && pl.lastCard && pool.length > 1) {
-    const filtered = pool.filter(c => c !== pl.lastCard);
-    if (filtered.length > 0) pool = filtered;
+  if (!gameState) return 'shield';
+  if (!Array.isArray(gameState.itemDeck) || gameState.itemDeck.length === 0) {
+    gameState.itemDeck = ['skywalk', 'bike', 'trap', 'swap', 'snake_call', 'gust', 'shield'];
   }
 
+  const ps = gameState.players, last = ps.length > 1 && ps.every(o => o === pl || o.pos > pl.pos);
   const seed = (typeof r === 'number' && !isNaN(r)) ? r : Math.random();
-  const picked = pool[Math.floor(seed * pool.length) % pool.length];
+
+  let picked = null;
+
+  // Comeback help: if player is strictly in last place, prioritize comeback cards from the deck
+  if (last) {
+    const comebackCards = ['shield', 'skywalk', 'swap', 'bike'];
+    const candidates = gameState.itemDeck.filter(c => comebackCards.includes(c) && c !== pl.lastCard);
+    if (candidates.length > 0) {
+      const cIdx = Math.floor(seed * candidates.length) % candidates.length;
+      picked = candidates[cIdx];
+      const deckIdx = gameState.itemDeck.indexOf(picked);
+      if (deckIdx >= 0) gameState.itemDeck.splice(deckIdx, 1);
+    }
+  }
+
+  // Normal deck draw (without replacement so all 7 cards appear equally)
+  if (!picked) {
+    let availableDeck = gameState.itemDeck;
+    if (pl && pl.lastCard && gameState.itemDeck.length > 1 && gameState.itemDeck.some(c => c !== pl.lastCard)) {
+      availableDeck = gameState.itemDeck.filter(c => c !== pl.lastCard);
+    }
+    const idx = Math.floor(seed * availableDeck.length) % availableDeck.length;
+    picked = availableDeck[idx];
+    const deckIdx = gameState.itemDeck.indexOf(picked);
+    if (deckIdx >= 0) gameState.itemDeck.splice(deckIdx, 1);
+  }
+
   if (pl) pl.lastCard = picked;
   return picked;
 }
@@ -1618,6 +1640,9 @@ function applySyncedState(st) {
   });
   if (typeof st.turn === 'number') {
     gameState.turn = st.turn;
+  }
+  if (Array.isArray(st.itemDeck)) {
+    gameState.itemDeck = [...st.itemDeck];
   }
   if (st.winner != null && gameState.winner == null) {
     gameState.winner = st.winner;
@@ -2700,7 +2725,8 @@ class NetworkSession {
           lastCard: p.lastCard || null
         })),
         turn: gameState.turn,
-        winner: gameState.winner
+        winner: gameState.winner,
+        itemDeck: gameState.itemDeck || []
       }
     });
   }
@@ -3067,7 +3093,8 @@ function initGameSession(playersList, mode) {
     mode,
     players: playersList,
     turn: 0,
-    winner: null
+    winner: null,
+    itemDeck: ['skywalk', 'bike', 'trap', 'swap', 'snake_call', 'gust', 'shield']
   };
   isBusy = false; turnKey = -1; rollPending = false;
   readyIds.clear();
@@ -3147,6 +3174,7 @@ function resetGame() {
   document.getElementById('skywalkSelectionBanner')?.classList.add('hidden');
   document.getElementById('modalItemDecision')?.classList.add('hidden');
   gameState.players.forEach(p => { p.pos = 0; p.cards = []; p.trap = null; p.sixes = 0; p.skip = false; p.shield = false; p.lastCard = null; });
+  gameState.itemDeck = ['skywalk', 'bike', 'trap', 'swap', 'snake_call', 'gust', 'shield'];
   gameState.turn = 0;
   gameState.winner = null;
   isBusy = false; turnKey = -1; rollPending = false;
