@@ -2279,22 +2279,24 @@ async function handleRoll(v, card = null, v2 = rollDie(), ti = null, r = Math.ra
           trapOwner.trap = null;
           updateHUD();
           await sleep(200);
-          if (sfx.playTrap) sfx.playTrap();
-          else sfx.playSnake();
           if (takeShield(pl)) {
             sfx.playShield();
-            showToast(`🛡️ ${pl.name} ใช้โล่กันกับดักที่ช่อง ${n}!`, '🛡️', 'ไม่โดนข้ามตา แต่หยุดเดินที่ช่องนี้');
+            showToast(`🛡️ ${pl.name} มีโล่! ทำลายกับดักที่ช่อง ${n}`, '🛡️', 'โล่สลายตัวแต่เดินทะลุผ่านต่อได้');
+            await sleep(600);
+            // Shield absorbed trap: player walks through to their destination without being stopped!
           } else {
+            if (sfx.playTrap) sfx.playTrap();
+            else sfx.playSnake();
             pl.skip = true;
             sfx.playSnake();
             const hitMsg = trapOwner === pl ? 'พลาดท่าเหยียบกับดักของตัวเอง' : `ติดกับดักของ ${trapOwner.name}`;
             showToast(`🪤 ${pl.name} ${hitMsg} ที่ช่อง ${n}!`, '🪤', 'หยุดเดินทันที และข้ามทอยเต๋า 1 ตา');
+            target = n;
+            pl.pos = n;
+            placePawn(turnIdx, n);
+            await sleep(800);
+            break; // Stop walking immediately at trap tile!
           }
-          target = n;
-          pl.pos = n;
-          placePawn(turnIdx, n);
-          await sleep(800);
-          break; // Stop walking immediately at trap tile!
         }
       }
     }
