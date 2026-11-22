@@ -1682,7 +1682,7 @@ async function applyTileEffectsTo(seatIdx, maxDepth = 2) {
   }
 
   // 6. Card Tile check
-  if (CARD_TILES.includes(p.pos) && maxDepth >= 2) {
+  if (CARD_TILES.includes(p.pos) && maxDepth >= 1) {
     await sleep(400);
     const c = drawCard(p, currentRollSeed);
     sfx.playSkillDraw();
@@ -1766,9 +1766,6 @@ async function applyCardEffect(turnIdx, card, targetSeat = null, targetTile = nu
         showToast(`🔄 ${pl.name} สลับตำแหน่งกับ ${o.name}!`, '🔄', `${pl.name} อยู่ช่อง ${pl.pos}, ${o.name} อยู่ช่อง ${o.pos}`);
         checkPassportStamps(pl.pos);
         checkPassportStamps(o.pos);
-        await sleep(600);
-        await applyTileEffectsTo(turnIdx);
-        await applyTileEffectsTo(ti);
       }
       updateHUD();
       await sleep(600);
