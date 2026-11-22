@@ -1541,6 +1541,160 @@ function isMyTurn() {
   return false;
 }
 
+function isLocalPlayer(seatIdx) {
+  if (!gameState) return false;
+  if (gameState.mode === 'bot') return seatIdx === 0;
+  if (gameState.mode === 'pass') return true;
+  if (gameState.mode === 'host') return seatIdx === 0;
+  if (gameState.mode === 'guest') return seatIdx === netSession.mySeat;
+  return false;
+}
+
+let currentRollSeed = 0.5;
+let pendingItemDecisionResolver = null;
+let pendingSyncState = null;
+
+function applySyncedState(st) {
+  if (!gameState || !st || !Array.isArray(st.players)) return;
+  st.players.forEach((sp, i) => {
+    if (gameState.players[i]) {
+      gameState.players[i].pos = sp.pos;
+      gameState.players[i].shield = Boolean(sp.shield);
+      gameState.players[i].trap = sp.trap;
+      gameState.players[i].skip = Boolean(sp.skip);
+      gameState.players[i].sixes = sp.sixes || 0;
+      placePawn(i, sp.pos);
+    }
+  });
+  if (typeof st.turn === 'number') {
+    gameState.turn = st.turn;
+  }
+  if (st.winner != null && gameState.winner == null) {
+    gameState.winner = st.winner;
+    if (gameState.players[st.winner]) {
+      showWinnerModal(gameState.players[st.winner]);
+    }
+  }
+  updateHUD();
+}
+
+// Comprehensive tile effect handler for any movement or displacement
+async function applyTileEffectsTo(seatIdx, maxDepth = 2) {
+  if (seatIdx == null || !gameState || gameState.winner != null) return {};
+  const ps = gameState.players;
+  const p = ps[seatIdx];
+  if (!p) return {};
+
+  let extra = {};
+
+  // 1. Trap check on p.pos
+  const trapOwnerIdx = ps.findIndex(o => o.trap === p.pos);
+  if (trapOwnerIdx >= 0) {
+    const trapOwner = ps[trapOwnerIdx];
+    trapOwner.trap = null;
+    updateHUD();
+    await sleep(200);
+    sfx.playTrap();
+    if (takeShield(p)) {
+      sfx.playShield();
+      showToast(`🛡️ ${p.name} ใช้โล่กันกับดักที่ช่อง ${p.pos}!`, '🛡️', 'ไม่โดนข้ามตา');
+    } else {
+      p.skip = true;
+      sfx.playSnake();
+      const hitMsg = trapOwner === p ? 'เหยียบกับดักของตัวเอง' : `ติดกับดักของ ${trapOwner.name}`;
+      showToast(`🪤 ${p.name} ${hitMsg} ที่ช่อง ${p.pos}!`, '🪤', 'หยุดและข้ามทอยเต๋า 1 ตา');
+    }
+    await sleep(600);
+  }
+
+  // 2. Ladder check
+  if (LADDERS[p.pos]) {
+    const [to, msg] = LADDERS[p.pos];
+    await sleep(350);
+    sfx.playLadder();
+    showToast(`🪜 ${p.name} ${msg}`, '🪜', `พุ่งทะยานจากช่อง ${p.pos} ไปช่อง ${to}!`);
+    await sleep(400);
+    p.pos = to;
+    placePawn(seatIdx, to);
+    checkPassportStamps(to);
+    await sleep(450);
+    if (maxDepth > 0) {
+      return await applyTileEffectsTo(seatIdx, maxDepth - 1);
+    }
+    return extra;
+  }
+
+  // 3. Snake check
+  if (SNAKES[p.pos]) {
+    if (takeShield(p)) {
+      await sleep(350);
+      sfx.playShield();
+      showToast(`🛡️ ${p.name} ใช้โล่กันงูที่ช่อง ${p.pos}!`, '🛡️', 'ไม่ต้องถอยกลับ');
+      await sleep(600);
+    } else {
+      const [to, msg] = SNAKES[p.pos];
+      await sleep(350);
+      sfx.playSnake();
+      showToast(`🐍 ${p.name} ${msg}`, '🐍', `ถอยกลับจากช่อง ${p.pos} มาช่อง ${to}!`);
+      await sleep(400);
+      p.pos = to;
+      placePawn(seatIdx, to);
+      await sleep(450);
+      if (maxDepth > 0) {
+        return await applyTileEffectsTo(seatIdx, maxDepth - 1);
+      }
+      return extra;
+    }
+  }
+
+  // 4. Milestone check
+  if (p.pos < 100 && MILESTONES[p.pos]) {
+    const m = MILESTONES[p.pos];
+    showToast(`${p.name} เดินถึง ${m.name}`, m.icon, m.desc);
+  }
+
+  // 5. Bump check (rival sitting on p.pos)
+  if (p.pos > 0 && p.pos < 100) {
+    const rivalIdx = ps.findIndex((o, idx) => idx !== seatIdx && o.pos === p.pos);
+    if (rivalIdx >= 0) {
+      const o = ps[rivalIdx];
+      await sleep(350);
+      if (takeShield(o)) {
+        sfx.playShield();
+        p.pos = Math.max(0, p.pos - 3);
+        placePawn(seatIdx, p.pos);
+        showToast(`🛡️ ${o.name} ใช้โล่! ${p.name} เด้งกลับ 3 ช่อง`, '🛡️', `ไปที่ช่อง ${p.pos}`);
+        await sleep(600);
+        if (maxDepth > 0) {
+          await applyTileEffectsTo(seatIdx, maxDepth - 1);
+        }
+      } else {
+        sfx.playSnake();
+        o.pos = Math.max(0, o.pos - 3);
+        placePawn(rivalIdx, o.pos);
+        showToast(`💥 ${p.name} ชน ${o.name} กระเด็นถอยหลัง 3 ช่อง!`, '💥', `ไปที่ช่อง ${o.pos}`);
+        await sleep(600);
+        if (maxDepth > 0) {
+          await applyTileEffectsTo(rivalIdx, maxDepth - 1);
+        }
+      }
+    }
+  }
+
+  // 6. Card Tile check
+  if (CARD_TILES.includes(p.pos) && maxDepth >= 2) {
+    await sleep(400);
+    const c = drawCard(p, currentRollSeed);
+    sfx.playSkillDraw();
+    const decision = await promptItemDecision(seatIdx, c);
+    if (decision && decision.extraRoll && seatIdx === gameState.turn) {
+      extra.extraRoll = true;
+    }
+  }
+
+  return extra;
+}
+
 // Pass the turn; a player marked skip loses that turn once
 function nextTurn() {
   const ps = gameState.players;
@@ -1582,27 +1736,7 @@ async function applyCardEffect(turnIdx, card, targetSeat = null, targetTile = nu
       await sleep(140);
     }
     checkPassportStamps(to);
-    if (LADDERS[to]) {
-      const [lTo, msg] = LADDERS[to];
-      sfx.playLadder();
-      showToast(`🪜 ${pl.name} ${msg}`, '🪜', `พุ่งทะยานจากช่อง ${to} ไปช่อง ${lTo}!`);
-      await sleep(250);
-      pl.pos = lTo;
-      placePawn(turnIdx, lTo);
-      checkPassportStamps(lTo);
-    } else if (SNAKES[to]) {
-      if (takeShield(pl)) {
-        sfx.playShield();
-        showToast(`🛡️ ${pl.name} ใช้โล่กันงู!`, '🛡️', 'ไม่ต้องถอยกลับ');
-      } else {
-        const [sTo, msg] = SNAKES[to];
-        sfx.playSnake();
-        showToast(`🐍 ${pl.name} ${msg}`, '🐍', `ถอยกลับจากช่อง ${to} มาช่อง ${sTo}!`);
-        await sleep(250);
-        pl.pos = sTo;
-        placePawn(turnIdx, sTo);
-      }
-    }
+    await applyTileEffectsTo(turnIdx);
     updateHUD();
     await sleep(600);
   } else if (card === 'bike') {
@@ -1631,9 +1765,13 @@ async function applyCardEffect(turnIdx, card, targetSeat = null, targetTile = nu
         sfx.playPop();
         showToast(`🔄 ${pl.name} สลับตำแหน่งกับ ${o.name}!`, '🔄', `${pl.name} อยู่ช่อง ${pl.pos}, ${o.name} อยู่ช่อง ${o.pos}`);
         checkPassportStamps(pl.pos);
+        checkPassportStamps(o.pos);
+        await sleep(600);
+        await applyTileEffectsTo(turnIdx);
+        await applyTileEffectsTo(ti);
       }
       updateHUD();
-      await sleep(1000);
+      await sleep(600);
     }
   } else if (card === 'gust') {
     const ti = targetSeat != null ? targetSeat : targetsFor(pl, 'gust')[0];
@@ -1647,9 +1785,11 @@ async function applyCardEffect(turnIdx, card, targetSeat = null, targetTile = nu
         placePawn(ti, o.pos);
         sfx.playGust();
         showToast(`💨 ${pl.name} พัด ${o.name} ถอยหลัง 5 ช่อง!`, '💨', `ถอยไปที่ช่อง ${o.pos}`);
+        await sleep(600);
+        await applyTileEffectsTo(ti);
       }
       updateHUD();
-      await sleep(1000);
+      await sleep(600);
     }
   } else if (card === 'snake_call') {
     const ti = targetSeat != null ? targetSeat : targetsFor(pl, 'snake_call')[0];
@@ -1669,10 +1809,12 @@ async function applyCardEffect(turnIdx, card, targetSeat = null, targetTile = nu
           o.pos = to; placePawn(ti, to);
           sfx.playSnake();
           showToast(`🐍 ${o.name} ไถลลงงูไปช่อง ${to}!`, '🐍');
+          await sleep(600);
+          await applyTileEffectsTo(ti);
         }
       }
       updateHUD();
-      await sleep(1000);
+      await sleep(600);
     }
   }
   return {};
@@ -1728,7 +1870,44 @@ async function promptItemDecision(turnIdx, card) {
     }
   }
 
-  // Human Player: show modal with USE or DISCARD
+  const isOnline = (gameState.mode === 'host' || gameState.mode === 'guest');
+
+  // If online and NOT this player's device: wait for active player's decision over network
+  if (isOnline && !isLocalPlayer(turnIdx)) {
+    document.getElementById('modalItemDecision').classList.add('hidden');
+    document.getElementById('trapSelectionBanner')?.classList.add('hidden');
+    showToast(`🎁 รอ ${pl.name} เลือกใช้หรือทิ้งไอเทม...`, C.icon || '🎁', `ไอเทม: ${C.name}`);
+
+    return new Promise(resolve => {
+      let settled = false;
+      const safeDone = (val) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        pendingItemDecisionResolver = null;
+        resolve(val);
+      };
+
+      pendingItemDecisionResolver = async (data) => {
+        if (data.action === 'use') {
+          showToast(`🎁 ${pl.name} ตัดสินใจ [ใช้ไอเทม] ${C.name}!`, C.icon || '✨');
+          await sleep(600);
+          const res = await applyCardEffect(turnIdx, card, data.targetSeat, data.targetTile);
+          safeDone({ action: 'use', ...res });
+        } else {
+          showToast(`🗑️ ${pl.name} ตัดสินใจทิ้งไอเทม ${C.name}`, '🗑️');
+          await sleep(600);
+          safeDone({ action: 'discard' });
+        }
+      };
+
+      const timeout = setTimeout(() => {
+        safeDone({ action: 'discard' });
+      }, 40000);
+    });
+  }
+
+  // Human Player on THIS device: show modal with USE or DISCARD
   const modal = document.getElementById('modalItemDecision');
   const banner = document.getElementById('trapSelectionBanner');
   document.getElementById('itemDecisionWho').textContent = `${pl.avatar} ${pl.name} ตกช่องไอเทมพิเศษ!`;
@@ -1762,16 +1941,45 @@ async function promptItemDecision(turnIdx, card) {
 
     const safetyTimer = setTimeout(() => {
       showToast('หมดเวลาเลือกไอเทม (ทิ้งไอเทมอัตโนมัติ)', '⏱️');
+      if (isOnline) {
+        netSession.send({
+          type: 'ITEM_DECISION',
+          turnIdx,
+          card,
+          action: 'discard',
+          senderId: netSession.myId
+        });
+      }
       safeResolve({ action: 'discard' });
     }, 35000);
 
     btnDiscard.onclick = () => {
       sfx.playPop();
       showToast(`🗑️ ${pl.name} ตัดสินใจทิ้งไอเทม ${C.name}`, '🗑️');
+      if (isOnline) {
+        netSession.send({
+          type: 'ITEM_DECISION',
+          turnIdx,
+          card,
+          action: 'discard',
+          senderId: netSession.myId
+        });
+      }
       safeResolve({ action: 'discard' });
     };
 
     const doExecuteUse = async (tSeat = null, tTile = null) => {
+      if (isOnline) {
+        netSession.send({
+          type: 'ITEM_DECISION',
+          turnIdx,
+          card,
+          action: 'use',
+          targetSeat: tSeat,
+          targetTile: tTile,
+          senderId: netSession.myId
+        });
+      }
       const res = await applyCardEffect(turnIdx, card, tSeat, tTile);
       safeResolve({ action: 'use', ...res });
     };
@@ -1781,6 +1989,15 @@ async function promptItemDecision(turnIdx, card) {
         const targets = targetsFor(pl, 'swap');
         if (targets.length === 0) {
           showToast('ไม่มีผู้เล่นคนอื่นบนกระดานให้สลับตำแหน่งด้วย (ทิ้งไอเทม)', '⚠️');
+          if (isOnline) {
+            netSession.send({
+              type: 'ITEM_DECISION',
+              turnIdx,
+              card,
+              action: 'discard',
+              senderId: netSession.myId
+            });
+          }
           safeResolve({ action: 'discard' });
           return;
         }
@@ -1812,6 +2029,15 @@ async function promptItemDecision(turnIdx, card) {
         if (btnCancelTrap) {
           btnCancelTrap.onclick = () => {
             showToast(`🗑️ ${pl.name} ตัดสินใจทิ้งกับดัก`, '🗑️');
+            if (isOnline) {
+              netSession.send({
+                type: 'ITEM_DECISION',
+                turnIdx,
+                card,
+                action: 'discard',
+                senderId: netSession.myId
+              });
+            }
             safeResolve({ action: 'discard' });
           };
         }
@@ -1819,6 +2045,15 @@ async function promptItemDecision(turnIdx, card) {
         const targets = targetsFor(pl, 'gust');
         if (targets.length === 0) {
           showToast('ไม่มีเป้าหมายให้ผลักถอยหลัง (ทิ้งไอเทม)', '⚠️');
+          if (isOnline) {
+            netSession.send({
+              type: 'ITEM_DECISION',
+              turnIdx,
+              card,
+              action: 'discard',
+              senderId: netSession.myId
+            });
+          }
           safeResolve({ action: 'discard' });
           return;
         }
@@ -1837,6 +2072,15 @@ async function promptItemDecision(turnIdx, card) {
         const targets = targetsFor(pl, 'snake_call');
         if (targets.length === 0) {
           showToast('ไม่มีผู้เล่นคนอื่นบนกระดานให้ส่งไปหางู (ทิ้งไอเทม)', '⚠️');
+          if (isOnline) {
+            netSession.send({
+              type: 'ITEM_DECISION',
+              turnIdx,
+              card,
+              action: 'discard',
+              senderId: netSession.myId
+            });
+          }
           safeResolve({ action: 'discard' });
           return;
         }
@@ -1870,6 +2114,7 @@ async function handleRoll(v, card = null, v2 = rollDie(), ti = null, r = Math.ra
   rollSeq++;
   rollPending = false;
   earlyPick = null;
+  currentRollSeed = (typeof r === 'number' && !isNaN(r)) ? r : Math.random();
   updateHUD();
 
   try {
@@ -1920,67 +2165,11 @@ async function handleRoll(v, card = null, v2 = rollDie(), ti = null, r = Math.ra
 
     checkPassportStamps(pl.pos);
 
-    // 3. Destination effects at pl.pos (Ladder, Snake, Milestone)
-    if (LADDERS[pl.pos]) {
-      const [to, msg] = LADDERS[pl.pos];
-      await sleep(350);
-      sfx.playLadder();
-      showToast(`🪜 ${pl.name} ${msg}`, '🪜', `พุ่งทะยานจากช่อง ${pl.pos} ไปช่อง ${to}!`);
-      await sleep(400);
-      pl.pos = to;
-      placePawn(turnIdx, to);
-      checkPassportStamps(to);
-      await sleep(450);
-    } else if (SNAKES[pl.pos] && takeShield(pl)) {
-      await sleep(350);
-      sfx.playShield();
-      showToast(`🛡️ ${pl.name} ใช้โล่กันงูที่ช่อง ${pl.pos}!`, '🛡️', 'ไม่ต้องถอยกลับ');
-      await sleep(600);
-    } else if (SNAKES[pl.pos]) {
-      const [to, msg] = SNAKES[pl.pos];
-      await sleep(350);
-      sfx.playSnake();
-      showToast(`🐍 ${pl.name} ${msg}`, '🐍', `ถอยกลับจากช่อง ${pl.pos} มาช่อง ${to}!`);
-      await sleep(400);
-      pl.pos = to;
-      placePawn(turnIdx, to);
-      await sleep(450);
-    } else if (pl.pos < 100) {
-      const m = MILESTONES[pl.pos];
-      if (m) {
-        showToast(`${pl.name} เดินถึง ${m.name}`, m.icon, m.desc);
-      }
-    }
-
-    // Bump: landing on a rival pushes them back 3, unless their shield bounces you instead
-    const j = pl.pos > 0 && pl.pos < 100 ? ps.findIndex((o, i) => i !== turnIdx && o.pos === pl.pos) : -1;
-    if (j >= 0) {
-      const o = ps[j];
-      await sleep(350);
-      if (takeShield(o)) {
-        sfx.playShield();
-        pl.pos = Math.max(0, pl.pos - 3);
-        placePawn(turnIdx, pl.pos);
-        showToast(`🛡️ ${o.name} ใช้โล่! ${pl.name} เด้งกลับ 3 ช่อง`, '🛡️');
-      } else {
-        sfx.playSnake();
-        o.pos = Math.max(0, o.pos - 3);
-        placePawn(j, o.pos);
-        showToast(`💥 ${pl.name} ชน ${o.name} ถอยหลัง 3 ช่อง!`, '💥');
-      }
-      await sleep(700);
-    }
-
-    // Item tile trigger: check final destination pl.pos
+    // 3. Destination effects at pl.pos (Ladders, Snakes, Milestones, Bumps, Traps, Item tiles)
     let extraRollFromItem = false;
-    if (CARD_TILES.includes(pl.pos)) {
-      await sleep(400);
-      const c = drawCard(pl, r);
-      sfx.playSkillDraw();
-      const decision = await promptItemDecision(turnIdx, c);
-      if (decision && decision.extraRoll) {
-        extraRollFromItem = true;
-      }
+    const destRes = await applyTileEffectsTo(turnIdx);
+    if (destRes && destRes.extraRoll) {
+      extraRollFromItem = true;
     }
 
     // 4. Winner or Next Turn
@@ -2005,6 +2194,13 @@ async function handleRoll(v, card = null, v2 = rollDie(), ti = null, r = Math.ra
     nextTurn();
   } finally {
     isBusy = false;
+    if (gameState && gameState.mode === 'host') {
+      netSession.broadcastState();
+    }
+    if (pendingSyncState) {
+      applySyncedState(pendingSyncState);
+      pendingSyncState = null;
+    }
     updateHUD();
   }
 }
@@ -2031,6 +2227,12 @@ function playTurn() {
     rollPending = true;
     netSession.send({ type: 'ROLL_REQ', id: netSession.myId });
     updateHUD();
+    setTimeout(() => {
+      if (rollPending) {
+        rollPending = false;
+        updateHUD();
+      }
+    }, 8000);
     return;
   }
   const v = rollDie();
@@ -2243,12 +2445,21 @@ class NetworkSession {
           // Re-send roster in case guest missed it
           this.broadcastRoster();
         }
-      } else if (data.type === 'ROLL_REQ' && gameState && gameState.winner == null && !isBusy
-                 && gameState.players[gameState.turn].id === data.id) {
-        const v = rollDie(), v2 = rollDie();
-        const card = hand(gameState.players[gameState.turn]).includes(data.card) ? data.card : null;
-        const target = Number.isInteger(data.target) ? data.target : null;
-        handleRoll(v, card, v2, target, this.broadcastRoll(v, card, v2, target));
+      } else if (data.type === 'ROLL_REQ' && gameState && gameState.winner == null) {
+        const handleGuestRoll = () => {
+          if (!gameState || gameState.winner != null) return;
+          const curPlayer = gameState.players[gameState.turn];
+          if (!curPlayer || curPlayer.id !== data.id) return;
+          if (isBusy) {
+            setTimeout(handleGuestRoll, 300);
+            return;
+          }
+          const v = rollDie();
+          const r = Math.random();
+          this.broadcastRoll(v, null, null, null, r);
+          handleRoll(v, null, null, null, r);
+        };
+        handleGuestRoll();
       } else if (data.type === 'PICK_REQ' && pickResolve && gameState.players[gameState.turn].id === data.id) {
         pickDie(data.die);
       } else if (data.type === 'REJOIN' && gameState && !isBusy && gameState.players.some(p => p.id === data.id)) {
@@ -2292,19 +2503,67 @@ class NetworkSession {
       }
     }
 
+    if (data.type === 'ITEM_DECISION') {
+      if (this.isHost && data.senderId !== this.myId) {
+        this.send({
+          type: 'ITEM_DECISION',
+          turnIdx: data.turnIdx,
+          card: data.card,
+          action: data.action,
+          targetSeat: data.targetSeat,
+          targetTile: data.targetTile,
+          senderId: data.senderId
+        });
+      }
+      if (pendingItemDecisionResolver) {
+        const cb = pendingItemDecisionResolver;
+        pendingItemDecisionResolver = null;
+        cb(data);
+      }
+    }
+
+    if (data.type === 'SYNC_STATE' && !this.isHost && gameState && data.state) {
+      if (!isBusy) {
+        applySyncedState(data.state);
+      } else {
+        pendingSyncState = data.state;
+      }
+    }
+
     if (data.type === 'RESTART' && gameState && (gameState.mode === 'host' || gameState.mode === 'guest')) {
       resetGame();
     }
 
     if (data.type === 'ROLL' && !this.isHost && gameState && gameState.winner == null) {
+      rollPending = false;
       if (gameState.turn !== data.turn) {
         gameState.turn = data.turn;
       }
-      handleRoll(data.roll, data.card, data.v2, data.target, typeof data.r === 'number' ? data.r : 0);
+      handleRoll(data.roll, data.card, data.v2, data.target, typeof data.r === 'number' ? data.r : Math.random());
     }
     if (data.type === 'PICK' && !this.isHost && gameState) {
       pickDie(data.die);
     }
+  }
+
+  broadcastState() {
+    if (!this.isHost || !gameState) return;
+    this.send({
+      type: 'SYNC_STATE',
+      state: {
+        players: gameState.players.map(p => ({
+          name: p.name,
+          avatar: p.avatar,
+          pos: p.pos,
+          shield: Boolean(p.shield),
+          trap: p.trap,
+          skip: Boolean(p.skip),
+          sixes: p.sixes || 0
+        })),
+        turn: gameState.turn,
+        winner: gameState.winner
+      }
+    });
   }
 
   startGuestJoinRetry(myId, name, avatar) {
