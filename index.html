@@ -1203,9 +1203,19 @@ const playable = (pl, c) => CARDS[c].kind === 'attack' ? targetsFor(pl, c).lengt
 // r: random number in [0,1) sent by the host with the roll, so every online client draws the same card
 function drawCard(pl, r) {
   const ps = gameState.players, last = ps.length > 1 && ps.every(o => o === pl || o.pos > pl.pos);
-  const pool = last ? ['shield', 'skywalk', 'swap', 'bike'] // comeback help
-    : ['skywalk', 'bike', 'trap', 'swap', 'snake_call', 'gust', 'shield', 'shield'];
-  return pool[Math.floor(r * pool.length) % pool.length];
+  let pool = last ? ['shield', 'skywalk', 'swap', 'bike'] // comeback help
+    : ['skywalk', 'bike', 'trap', 'swap', 'snake_call', 'gust', 'shield'];
+
+  // Prevent getting the same card consecutively
+  if (pl && pl.lastCard && pool.length > 1) {
+    const filtered = pool.filter(c => c !== pl.lastCard);
+    if (filtered.length > 0) pool = filtered;
+  }
+
+  const seed = (typeof r === 'number' && !isNaN(r)) ? r : Math.random();
+  const picked = pool[Math.floor(seed * pool.length) % pool.length];
+  if (pl) pl.lastCard = picked;
+  return picked;
 }
 // Bot choice: attack the leader ahead when possible, else any move card
 function botCard(pl) {
@@ -1602,6 +1612,7 @@ function applySyncedState(st) {
       gameState.players[i].trap = sp.trap;
       gameState.players[i].skip = Boolean(sp.skip);
       gameState.players[i].sixes = sp.sixes || 0;
+      gameState.players[i].lastCard = sp.lastCard || null;
       placePawn(i, sp.pos);
     }
   });
@@ -1724,6 +1735,7 @@ async function applyTileEffectsTo(seatIdx, maxDepth = 2) {
   // 6. Card Tile check
   if (CARD_TILES.includes(p.pos) && maxDepth >= 1) {
     await sleep(400);
+    currentRollSeed = ((currentRollSeed * 9301 + 49297) % 233280) / 233280;
     const c = drawCard(p, currentRollSeed);
     sfx.playSkillDraw();
     const decision = await promptItemDecision(seatIdx, c);
@@ -2682,7 +2694,8 @@ class NetworkSession {
           shield: Boolean(p.shield),
           trap: p.trap,
           skip: Boolean(p.skip),
-          sixes: p.sixes || 0
+          sixes: p.sixes || 0,
+          lastCard: p.lastCard || null
         })),
         turn: gameState.turn,
         winner: gameState.winner
@@ -3046,6 +3059,7 @@ function initGameSession(playersList, mode) {
     p.trap = null;
     p.sixes = 0;
     p.skip = false;
+    p.lastCard = null;
   });
   gameState = {
     mode,
@@ -3130,7 +3144,7 @@ function resetGame() {
   document.getElementById('trapSelectionBanner')?.classList.add('hidden');
   document.getElementById('skywalkSelectionBanner')?.classList.add('hidden');
   document.getElementById('modalItemDecision')?.classList.add('hidden');
-  gameState.players.forEach(p => { p.pos = 0; p.cards = []; p.trap = null; p.sixes = 0; p.skip = false; p.shield = false; });
+  gameState.players.forEach(p => { p.pos = 0; p.cards = []; p.trap = null; p.sixes = 0; p.skip = false; p.shield = false; p.lastCard = null; });
   gameState.turn = 0;
   gameState.winner = null;
   isBusy = false; turnKey = -1; rollPending = false;
