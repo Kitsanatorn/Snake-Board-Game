@@ -245,6 +245,28 @@
     transform: scale(1.06);
     z-index: 25;
   }
+  #board.selecting-trap .pawn,
+  #board.selecting-skywalk .pawn {
+    pointer-events: none !important;
+  }
+  #board.selecting-skywalk {
+    box-shadow: 0 0 0 4px #06b6d4, 0 10px 30px rgba(6, 182, 212, .45) !important;
+  }
+  #board.selecting-skywalk .tile.is-skywalk-target {
+    cursor: pointer !important;
+    box-shadow: inset 0 0 0 3px #06b6d4, 0 0 16px rgba(6, 182, 212, .8) !important;
+    animation: skywalkPulse .75s ease-in-out infinite alternate;
+    z-index: 26;
+  }
+  #board.selecting-skywalk .tile.is-skywalk-target:hover {
+    outline: 3.5px solid #0891b2 !important;
+    transform: scale(1.08);
+    z-index: 28;
+  }
+  @keyframes skywalkPulse {
+    0% { transform: scale(1); filter: brightness(1); }
+    100% { transform: scale(1.05); filter: brightness(1.15); }
+  }
   .pawn.has-shield {
     box-shadow: 0 0 0 3.5px #3b82f6, 0 0 10px rgba(59,130,246,.7) !important;
   }
@@ -736,6 +758,16 @@
   <button id="btnCancelTrap" type="button" class="ml-2 px-3 py-1.5 rounded-xl bg-amber-700 hover:bg-amber-800 text-xs font-bold text-white shadow">ยกเลิก</button>
 </div>
 
+<!-- Floating Banner: โหมดแตะเลือกช่อง Skywalk Dash บนกระดาน -->
+<div id="skywalkSelectionBanner" class="hidden fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-cyan-600 text-white px-5 py-3 rounded-2xl shadow-2xl border-2 border-white flex items-center gap-3 animate-bounce">
+  <span class="text-3xl">🌉</span>
+  <div>
+    <div class="font-game font-black text-sm text-white">แตะช่องบนกระดานเพื่อพุ่ง Skywalk Dash!</div>
+    <div id="skywalkRangeText" class="text-[11px] text-cyan-100 font-semibold">จิ้มเลือกช่องที่ต้องการวาร์ปไป (ไม่เกิน 6 ช่องข้างหน้า)</div>
+  </div>
+  <button id="btnCancelSkywalk" type="button" class="ml-2 px-3 py-1.5 rounded-xl bg-cyan-800 hover:bg-cyan-900 text-xs font-bold text-white shadow">ยกเลิก</button>
+</div>
+
 <!-- Modal: กล่องสุ่มไอเทม (ใช้ หรือ ทิ้ง) -->
 <div id="modalItemDecision" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
   <div class="game-card w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center animate-in border-4 border-amber-400 bg-white">
@@ -1012,6 +1044,7 @@ class SoundFX {
 SoundFX.prototype.playSkillDraw = function () { [440, 554.37, 659.25, 880].forEach((f, i) => setTimeout(() => this.playTone(f, 'triangle', 0.15, 0.2), i * 65)); };
 SoundFX.prototype.playShield = function () { [320, 480, 640].forEach((f, i) => setTimeout(() => this.playTone(f, 'sine', 0.25, 0.22), i * 55)); };
 SoundFX.prototype.playGust = function () { [420, 330, 250, 180].forEach((f, i) => setTimeout(() => this.playTone(f, 'sawtooth', 0.1, 0.09), i * 65)); };
+SoundFX.prototype.playTrap = function () { [280, 220, 160].forEach((f, i) => setTimeout(() => this.playTone(f, 'sawtooth', 0.18, 0.16), i * 70)); };
 const sfx = new SoundFX();
 document.getElementById('heroTiles').innerHTML = Array.from({ length: 25 }, (_, i) =>
   `<rect x="${(i % 5) * 39.2 + 1}" y="${Math.floor(i / 5) * 39.2 + 1}" width="37.2" height="37.2" rx="6" fill="${['#fffaf0', '#bbf7d0', '#fde68a', '#bae6fd'][(i + Math.floor(i / 5)) % 2 ? 0 : 1 + (i % 3)]}"/>`).join('');
@@ -1103,7 +1136,7 @@ const SNAKES = {
 const CARD_TILES = [7, 11, 17, 22, 30, 36, 45, 52, 59, 66, 71, 79, 84, 88, 94];
 const HAND_MAX = 2;
 const CARDS = {
-  skywalk:    { kind: 'move',   icon: '🌉', name: 'Skywalk Dash!', desc: 'สไลด์ทะยานไปข้างหน้า 4 ช่องทันที!' },
+  skywalk:    { kind: 'move',   icon: '🌉', name: 'Skywalk Dash!', desc: 'เลือกวาร์ปทะยานไปข้างหน้าได้สูงสุด 6 ช่อง (จิ้มเลือกช่องบนกระดาน)' },
   bike:       { kind: 'move',   icon: '🚲', name: 'ปั่นจักรยานรอบสวน', desc: 'ได้รับสิทธิ์ทอยลูกเต๋าเดินเพิ่มอีก 1 ครั้งทันที!' },
   trap:       { kind: 'move',   icon: '🪤', name: 'กับดัก', desc: 'วางกับดักไว้ที่ช่องใดก็ได้บนกระดาน คนแรกที่เดินผ่านจะถูกบังคับหยุดและข้ามทอยเต๋า 1 ตา' },
   swap:       { kind: 'attack', icon: '🔄', name: 'สลับร่าง', desc: 'สลับตำแหน่งกับผู้เล่นคนใดก็ได้บนกระดานทันที' },
@@ -1191,6 +1224,8 @@ const PASSPORT_STAMPS = [
 let unlockedStamps = new Set();
 let selectingTrapTile = false;
 let onTrapTileChosen = null;
+let selectingSkywalkTile = false;
+let onSkywalkTileChosen = null;
 
 const zoneOf = n => ZONES.find(z => n <= z.to) || ZONES[0];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1237,11 +1272,15 @@ for (let row = 0; row < 10; row++) {
       <div class="tile-name">${tileNameContent}</div>
     `;
 
-    // Click on tile -> open landmark info drawer (or select tile if placing trap)
+    // Click on tile -> open landmark info drawer (or select tile if placing trap / skywalk)
     el.onclick = () => {
       sfx.playPop();
       if (selectingTrapTile && onTrapTileChosen) {
         onTrapTileChosen(n);
+        return;
+      }
+      if (selectingSkywalkTile && onSkywalkTileChosen) {
+        onSkywalkTileChosen(n);
         return;
       }
       openLandmarkInfo(n);
@@ -1588,13 +1627,14 @@ async function applyTileEffectsTo(seatIdx, maxDepth = 2) {
   let extra = {};
 
   // 1. Trap check on p.pos
-  const trapOwnerIdx = ps.findIndex(o => o.trap === p.pos);
+  const trapOwnerIdx = ps.findIndex(o => o.trap != null && Number(o.trap) === p.pos);
   if (trapOwnerIdx >= 0) {
     const trapOwner = ps[trapOwnerIdx];
     trapOwner.trap = null;
     updateHUD();
     await sleep(200);
-    sfx.playTrap();
+    if (sfx.playTrap) sfx.playTrap();
+    else sfx.playSnake();
     if (takeShield(p)) {
       sfx.playShield();
       showToast(`🛡️ ${p.name} ใช้โล่กันกับดักที่ช่อง ${p.pos}!`, '🛡️', 'ไม่โดนข้ามตา');
@@ -1724,16 +1764,18 @@ async function applyCardEffect(turnIdx, card, targetSeat = null, targetTile = nu
     updateHUD();
     await sleep(800);
   } else if (card === 'skywalk') {
-    const steps = 4;
     const start = pl.pos;
-    const to = Math.min(100, pl.pos + steps);
+    const maxTarget = Math.min(100, start + 6);
+    let to = (targetTile != null && Number(targetTile) >= start + 1)
+      ? Math.min(maxTarget, Number(targetTile))
+      : Math.min(100, start + 4);
     sfx.playStep();
-    showToast(`🌉 ${pl.name} ใช้ Skywalk Dash!`, '🌉', `สไลด์ทะยานไปข้างหน้า 4 ช่อง สู่ช่อง ${to}!`);
+    showToast(`🌉 ${pl.name} ใช้ Skywalk Dash!`, '🌉', `วาร์ปทะยานสู่ช่อง ${to}!`);
     for (let n = start + 1; n <= to; n++) {
       pl.pos = n;
       placePawn(turnIdx, n);
       sfx.playStep();
-      await sleep(140);
+      await sleep(120);
     }
     checkPassportStamps(to);
     await applyTileEffectsTo(turnIdx);
@@ -1854,6 +1896,25 @@ async function promptItemDecision(turnIdx, card) {
       const leader = ps.reduce((max, p) => p.pos > max.pos ? p : max, pl);
       targetTile = leader.pos > pl.pos ? Math.min(99, leader.pos + 2) : Math.min(99, pl.pos + 4);
       willUse = true;
+    } else if (card === 'skywalk') {
+      const start = pl.pos;
+      const minT = start + 1;
+      const maxT = Math.min(100, start + 6);
+      let bestT = maxT;
+      let bestScore = -9999;
+      for (let t = minT; t <= maxT; t++) {
+        let score = t;
+        if (t === 100) score += 10000;
+        if (LADDERS[t]) score = LADDERS[t][0] + 50;
+        if (SNAKES[t]) score = SNAKES[t][0] - 50;
+        if (CARD_TILES.includes(t)) score += 15;
+        if (score > bestScore) {
+          bestScore = score;
+          bestT = t;
+        }
+      }
+      targetTile = bestT;
+      willUse = true;
     }
 
     if (willUse) {
@@ -1873,6 +1934,7 @@ async function promptItemDecision(turnIdx, card) {
   if (isOnline && !isLocalPlayer(turnIdx)) {
     document.getElementById('modalItemDecision').classList.add('hidden');
     document.getElementById('trapSelectionBanner')?.classList.add('hidden');
+    document.getElementById('skywalkSelectionBanner')?.classList.add('hidden');
     showToast(`🎁 รอ ${pl.name} เลือกใช้หรือทิ้งไอเทม...`, C.icon || '🎁', `ไอเทม: ${C.name}`);
 
     return new Promise(resolve => {
@@ -1929,8 +1991,12 @@ async function promptItemDecision(turnIdx, card) {
       settled = true;
       selectingTrapTile = false;
       onTrapTileChosen = null;
-      boardEl.classList.remove('selecting-trap');
+      selectingSkywalkTile = false;
+      onSkywalkTileChosen = null;
+      boardEl.classList.remove('selecting-trap', 'selecting-skywalk');
+      document.querySelectorAll('.is-skywalk-target').forEach(t => t.classList.remove('is-skywalk-target'));
       if (banner) banner.classList.add('hidden');
+      document.getElementById('skywalkSelectionBanner')?.classList.add('hidden');
       modal.classList.add('hidden');
       clearTimeout(safetyTimer);
       resolve(val);
@@ -2026,6 +2092,64 @@ async function promptItemDecision(turnIdx, card) {
         if (btnCancelTrap) {
           btnCancelTrap.onclick = () => {
             showToast(`🗑️ ${pl.name} ตัดสินใจทิ้งกับดัก`, '🗑️');
+            if (isOnline) {
+              netSession.send({
+                type: 'ITEM_DECISION',
+                turnIdx,
+                card,
+                action: 'discard',
+                senderId: netSession.myId
+              });
+            }
+            safeResolve({ action: 'discard' });
+          };
+        }
+      } else if (card === 'skywalk') {
+        const start = pl.pos;
+        const minT = start + 1;
+        const maxT = Math.min(100, start + 6);
+        if (minT > 100) {
+          showToast('อยู่ช่องสุดท้ายแล้ว ไม่สามารถวาร์ปต่อได้ (ทิ้งไอเทม)', '⚠️');
+          if (isOnline) {
+            netSession.send({
+              type: 'ITEM_DECISION',
+              turnIdx,
+              card,
+              action: 'discard',
+              senderId: netSession.myId
+            });
+          }
+          safeResolve({ action: 'discard' });
+          return;
+        }
+
+        modal.classList.add('hidden');
+        selectingSkywalkTile = true;
+        boardEl.classList.add('selecting-skywalk');
+        const skywalkBanner = document.getElementById('skywalkSelectionBanner');
+        const rangeText = document.getElementById('skywalkRangeText');
+        if (rangeText) rangeText.textContent = `แตะช่อง ${minT} ถึง ${maxT} บนกระดานเพื่อวาร์ปทันที`;
+        if (skywalkBanner) skywalkBanner.classList.remove('hidden');
+
+        // Highlight eligible target tiles
+        for (let t = minT; t <= maxT; t++) {
+          if (tiles[t]) tiles[t].classList.add('is-skywalk-target');
+        }
+
+        showToast('🌉 แตะช่องบนกระดานเพื่อพุ่ง Skywalk Dash!', '🌉', `เลือกช่อง ${minT} - ${maxT} (สูงสุด 6 ช่องข้างหน้า)`);
+
+        onSkywalkTileChosen = (chosenTile) => {
+          if (chosenTile < minT || chosenTile > maxT) {
+            showToast(`กรุณาเลือกช่องระหว่าง ${minT} ถึง ${maxT}`, '⚠️');
+            return;
+          }
+          doExecuteUse(null, chosenTile);
+        };
+
+        const btnCancelSkywalk = document.getElementById('btnCancelSkywalk');
+        if (btnCancelSkywalk) {
+          btnCancelSkywalk.onclick = () => {
+            showToast(`🗑️ ${pl.name} ตัดสินใจทิ้ง Skywalk Dash`, '🗑️');
             if (isOnline) {
               netSession.send({
                 type: 'ITEM_DECISION',
@@ -2137,13 +2261,14 @@ async function handleRoll(v, card = null, v2 = rollDie(), ti = null, r = Math.ra
         await sleep(180);
 
         // Trap: Any player (first person to step/pass) triggers the trap on tile n
-        const trapOwnerIdx = ps.findIndex(o => o.trap === n);
+        const trapOwnerIdx = ps.findIndex(o => o.trap != null && Number(o.trap) === n);
         if (trapOwnerIdx >= 0) {
           const trapOwner = ps[trapOwnerIdx];
           trapOwner.trap = null;
           updateHUD();
           await sleep(200);
-          sfx.playTrap();
+          if (sfx.playTrap) sfx.playTrap();
+          else sfx.playSnake();
           if (takeShield(pl)) {
             sfx.playShield();
             showToast(`🛡️ ${pl.name} ใช้โล่กันกับดักที่ช่อง ${n}!`, '🛡️', 'ไม่โดนข้ามตา แต่หยุดเดินที่ช่องนี้');
@@ -2154,6 +2279,8 @@ async function handleRoll(v, card = null, v2 = rollDie(), ti = null, r = Math.ra
             showToast(`🪤 ${pl.name} ${hitMsg} ที่ช่อง ${n}!`, '🪤', 'หยุดเดินทันที และข้ามทอยเต๋า 1 ตา');
           }
           target = n;
+          pl.pos = n;
+          placePawn(turnIdx, n);
           await sleep(800);
           break; // Stop walking immediately at trap tile!
         }
@@ -2930,8 +3057,12 @@ function initGameSession(playersList, mode) {
   readyIds.clear();
   selectingTrapTile = false;
   onTrapTileChosen = null;
-  boardEl.classList.remove('selecting-trap');
+  selectingSkywalkTile = false;
+  onSkywalkTileChosen = null;
+  boardEl.classList.remove('selecting-trap', 'selecting-skywalk');
+  document.querySelectorAll('.is-skywalk-target').forEach(t => t.classList.remove('is-skywalk-target'));
   document.getElementById('trapSelectionBanner')?.classList.add('hidden');
+  document.getElementById('skywalkSelectionBanner')?.classList.add('hidden');
   document.getElementById('modalItemDecision')?.classList.add('hidden');
   unlockedStamps.clear();
   document.getElementById('passportCount').textContent = `0/${PASSPORT_STAMPS.length}`;
@@ -2992,8 +3123,12 @@ function resetGame() {
   readyIds.clear();
   selectingTrapTile = false;
   onTrapTileChosen = null;
-  boardEl.classList.remove('selecting-trap');
+  selectingSkywalkTile = false;
+  onSkywalkTileChosen = null;
+  boardEl.classList.remove('selecting-trap', 'selecting-skywalk');
+  document.querySelectorAll('.is-skywalk-target').forEach(t => t.classList.remove('is-skywalk-target'));
   document.getElementById('trapSelectionBanner')?.classList.add('hidden');
+  document.getElementById('skywalkSelectionBanner')?.classList.add('hidden');
   document.getElementById('modalItemDecision')?.classList.add('hidden');
   gameState.players.forEach(p => { p.pos = 0; p.cards = []; p.trap = null; p.sixes = 0; p.skip = false; p.shield = false; });
   gameState.turn = 0;
